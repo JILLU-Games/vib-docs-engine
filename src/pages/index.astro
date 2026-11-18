@@ -4,15 +4,17 @@ import manifest from "../generated/manifest.json";
 import CategoryTabs from "../components/hub/CategoryTabs.astro";
 import ProjectCard from "../components/hub/ProjectCard.astro";
 import HubLayout from "../layouts/HubLayout.astro";
-import type { ManifestProject } from "../utils/manifest";
+import type { ManifestProject, SiteConfig } from "../utils/manifest";
 import { buildQuickSuggestions } from "../utils/search";
+import { buildHubJsonLd } from "../utils/seo";
 
 const projects = manifest.projects as ManifestProject[];
 const primaryProject = projects[0];
 const quickGuides = buildQuickSuggestions(projects, 3);
+const hubJsonLd = buildHubJsonLd(manifest.site as SiteConfig);
 ---
 
-<HubLayout site={manifest.site} projects={projects}>
+<HubLayout site={manifest.site} projects={projects} structuredData={hubJsonLd}>
   <main id="main-content" class="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6 lg:px-8">
     <section class="border-b border-[var(--border-hairline)] py-7 sm:py-9" aria-labelledby="portal-title">
       <div class={`grid grid-cols-1 items-start gap-6 ${quickGuides.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center" : ""}`}>

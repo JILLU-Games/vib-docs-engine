@@ -40,6 +40,13 @@ function routeToHtml(route) {
   return path.join(distDirectory, ...segments, "index.html");
 }
 
+function routeToMarkdownFile(route, productSlug) {
+  const cleanRoute = route.split(/[?#]/, 1)[0];
+  const segments = cleanRoute.split("/").filter(Boolean).slice(1);
+  const mdSlug = segments.length > 0 ? segments.join("/") : "index";
+  return path.join(distDirectory, productSlug, `${mdSlug}.md`);
+}
+
 function isInternalReference(value) {
   const trimmed = value.trim();
   if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//")) {
@@ -121,6 +128,7 @@ async function main() {
       "robots.txt",
       "sitemap-index.xml",
       "llms.txt",
+      "llms-full.txt",
       "favicon.ico",
       "favicon-96x96.png",
       "apple-touch-icon.png",
@@ -232,19 +240,45 @@ async function main() {
         const htmlPath = routeToHtml(page.route);
         if (!(await exists(htmlPath)))
           missingFiles.push(path.relative(projectRoot, htmlPath));
+        const mdPath = routeToMarkdownFile(page.route, project.slug);
+        if (!(await exists(mdPath)))
+          missingFiles.push(path.relative(projectRoot, mdPath));
+      }
+    }
+
+    const seoErrors = [];
+    const notFoundHtmlPath = path.join(distDirectory, "404.html");
+    if (await exists(notFoundHtmlPath)) {
+      const notFoundHtml = await fs.readFile(notFoundHtmlPath, "utf8");
+      if (!/<meta\s+name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(notFoundHtml)) {
+        seoErrors.push("dist/404.html is missing <meta name=\"robots\" content=\"noindex, ...\">");
       }
     }
 
     const htmlFiles = await walkHtml(distDirectory);
+    const jsonLdPattern = /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
     for (const htmlFile of htmlFiles) {
       const html = await fs.readFile(htmlFile, "utf8");
+      const relHtmlPath = path.relative(distDirectory, htmlFile);
+      const jsonLdMatches = Array.from(html.matchAll(jsonLdPattern));
+      if (relHtmlPath === "index.html" && jsonLdMatches.length === 0) {
+        seoErrors.push("dist/index.html is missing Schema.org JSON-LD");
+      }
+      for (const jsonMatch of jsonLdMatches) {
+        try {
+          JSON.parse(jsonMatch[1]);
+        } catch (error) {
+          seoErrors.push(`${relHtmlPath} contains invalid JSON-LD: ${error.message}`);
+        }
+      }
+
       const hrefPattern = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
       for (const match of html.matchAll(hrefPattern)) {
         const href = (match[1] ?? match[2] ?? "").replace(/&amp;/g, "&");
         if (!isInternalReference(href)) continue;
         if (!(await resolveInternalHref(href, htmlFile))) {
           brokenLinks.push(
-            `${path.relative(distDirectory, htmlFile)} -> ${href}`,
+            `${relHtmlPath} -> ${href}`,
           );
         }
       }
@@ -256,13 +290,13 @@ async function main() {
         if (!isInternalReference(src)) continue;
         if (!(await resolveInternalAsset(src, htmlFile))) {
           brokenLinks.push(
-            `${path.relative(distDirectory, htmlFile)} -> img[src="${src}"]`,
+            `${relHtmlPath} -> img[src="${src}"]`,
           );
         }
       }
     }
 
-    if (missingFiles.length || brokenLinks.length || cloudflareErrors.length) {
+    if (missingFiles.length || brokenLinks.length || cloudflareErrors.length || seoErrors.length) {
       console.error("Build verification failed.");
       if (missingFiles.length) {
         console.error("Missing files:");
@@ -271,6 +305,10 @@ async function main() {
       if (cloudflareErrors.length) {
         console.error("Cloudflare configuration errors:");
         for (const err of cloudflareErrors) console.error(`  - ${err}`);
+      }
+      if (seoErrors.length) {
+        console.error("SEO / AI verification errors:");
+        for (const err of seoErrors) console.error(`  - ${err}`);
       }
       if (brokenLinks.length) {
         console.error("Broken internal links:");

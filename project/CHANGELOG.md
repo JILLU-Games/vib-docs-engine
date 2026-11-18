@@ -120,3 +120,36 @@ Record dates, files/areas, behavior changed, and verification result whenever co
 - Upgraded `src/layouts/HubLayout.astro` footer (leaving `<header>` untouched) into a 4-column responsive structure (`Brand`, `Documentation`, `Resources` -> `/llms.txt` & `/sitemap-index.xml`, `Connect` -> `site.navLinks`) with a hairline copyright and domain hostname bar.
 - Verified `compile_applet`, `lint_applet` (`tsc --noEmit`), `node scripts/verify-build.mjs` (`6` HTML files, `14` required assets, `0` broken links), `npx --yes tsx --test src/utils/search.test.ts` (`4/4`), and Chromium captures across Dark/Light Desktop (`1440x900`) and Mobile (`390x844`).
 
+## 2026-11-18 — SEO-Phase 01: Core Technical SEO, `404` `noindex`, OpenGraph Article Type & `robots.txt`
+
+- Added optional `ogType` and `robots` props, protocol-safe base origin normalization, `<meta property="og:image:alt">`, and `<link rel="sitemap" type="application/xml" href="/sitemap-index.xml">` to `src/layouts/BaseLayout.astro`.
+- Forwarded optional `robots` prop through `src/layouts/HubLayout.astro`, enabled `robots="noindex, follow"` on `src/pages/404.astro`, and enabled `ogType="article"` on documentation routes in `src/layouts/DocsLayout.astro`.
+- Added `Disallow: /pagefind/` to `src/pages/robots.txt.ts` so search bots skip Pagefind client WASM/index shards while keeping `Allow: /` and `Sitemap`.
+- Verified `compile_applet`, `lint_applet` (`tsc --noEmit`), `node scripts/verify-build.mjs` (`6` HTML files, `14` required assets, `0` broken links), and inspected built `<head>` metadata across `dist/index.html`, `dist/404.html`, `dist/vib-docs-engine/index.html`, and `dist/robots.txt`.
+
+## 2026-11-18 — SEO-Phase 02: Schema.org Structured Data (`JSON-LD`) & Safe Serializer
+
+- Created `src/utils/seo.ts` (`resolveOrigin`, `resolveAbsoluteUrl`, `safeJsonLdStringify`, `buildHubJsonLd`, `buildDocJsonLd`) and `src/utils/seo.test.ts` with HTML script-breakout escaping and `node:test` coverage.
+- Added optional `structuredData` injection in `src/layouts/BaseLayout.astro` and pass-through in `src/layouts/HubLayout.astro`.
+- Emitted `Organization` + `WebSite` (`SearchAction` targeting `/?q={search_term_string}`) on `src/pages/index.astro`, and `TechArticle` + ordered `BreadcrumbList` on `src/layouts/DocsLayout.astro`.
+- Verified `npx --yes tsx --test src/utils/seo.test.ts src/utils/search.test.ts` (`8/8` pass), `compile_applet`, `lint_applet` (`tsc --noEmit`), `node scripts/verify-build.mjs`, and `JSON.parse` validation on built `<script type="application/ld+json">` outputs.
+
+## 2026-11-18 — SEO-Phase 03: AI Search Engine Indexes (`/llms-full.txt`, Per-Page `.md` & Edge Headers)
+
+- Created shared `src/utils/llms.ts` helper (`resolveProductEntries`, `readCleanMarkdownBody`, `buildRootLlmsText`, `buildProductLlmsText`, `buildRootLlmsFullText`, `buildSingleDocMarkdownText`, `routeToMarkdownPath`) and refactored `src/pages/llms.txt.ts` and `src/pages/[product]/llms.txt.ts` to eliminate duplicate YAML-stripping logic.
+- Added static root `/llms-full.txt` (`src/pages/llms-full.txt.ts`) and per-page clean Markdown routes (`src/pages/[product]/[...slug].md.ts` -> `/{product}/{slug}.md`).
+- Added `<link rel="alternate">` AI discovery links (`/llms.txt`, per-page `.md`, and product `llms.txt`) in `src/layouts/BaseLayout.astro` and `src/layouts/DocsLayout.astro`, plus UTF-8 `text/plain` / `text/markdown` Cloudflare edge headers in `public/_headers`.
+- Verified `compile_applet`, `lint_applet` (`tsc --noEmit`), `node scripts/verify-build.mjs` (`6` HTML files, `14` assets, `0` broken links), `dist/llms-full.txt` (`20,030` bytes), and all per-page `.md` exports.
+
+## 2026-11-18 — SEO-Phase 04: `?q=` SearchAction Parity, Pagefind Tuning, Verifier & Docs Sync
+
+- Added URL `?q=` query parameter handling in `src/components/ui/SearchModal.astro` so Google `SearchAction` (`/?q={search_term_string}`) links auto-open and populate Pagefind search safely (capped at `120` chars, cleaned via `history.replaceState` on close).
+- Tuned Pagefind relevance in `src/layouts/DocsLayout.astro` with `data-pagefind-ignore="all"` on `<nav aria-label="Breadcrumb">` and `data-pagefind-weight="10"` on fallback article `<h1>`.
+- Upgraded `scripts/verify-build.mjs` to enforce `/llms-full.txt`, per-page `.md` parity for every `flatPages` route, `<meta name="robots" content="noindex, ...">` on `dist/404.html`, and valid `JSON.parse()` on every `<script type="application/ld+json">` tag.
+- Updated `src/MANIFEST.md`, `notes/010-seo-phase-execution-tracker.md`, `notes/012-actual-implementation-matrix.md`, and `project/04-codebase-reference.md`.
+- Verified `npx --yes tsx --test src/utils/seo.test.ts src/utils/search.test.ts` (`8/8` pass), `compile_applet`, `lint_applet` (`tsc --noEmit`), `node scripts/verify-build.mjs` (`6` HTML files, `15` required assets, `0` broken links), and live Chromium `http://localhost:3000/?q=deployment` (`13` links, `0` console errors).
+
+
+
+
+

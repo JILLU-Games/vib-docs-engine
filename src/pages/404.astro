@@ -4,7 +4,7 @@ import manifest from "../generated/manifest.json";
 import HubLayout from "../layouts/HubLayout.astro";
 ---
 
-<HubLayout site={manifest.site}>
+<HubLayout site={manifest.site} robots="noindex, follow">
   <main id="main-content" class="mx-auto flex w-full max-w-6xl flex-1 items-start px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
     <section class="w-full max-w-md rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 sm:p-6" aria-labelledby="not-found-title">
       <p class="font-mono text-xs text-[var(--accent-color)]">404 / NOT FOUND</p>

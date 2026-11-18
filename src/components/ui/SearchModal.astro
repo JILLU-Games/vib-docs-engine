@@ -571,6 +571,13 @@ const quickSuggestions = buildQuickSuggestions(manifest.projects as ManifestProj
     document.body.style.overflow = originalBodyOverflow;
     document.body.style.paddingRight = originalBodyPaddingRight;
     resultsList?.replaceChildren();
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("q")) {
+        url.searchParams.delete("q");
+        window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+      }
+    } catch {}
     if (lastFocusedElement?.isConnected) lastFocusedElement.focus();
   }
 
@@ -641,4 +648,23 @@ const quickSuggestions = buildQuickSuggestions(manifest.projects as ManifestProj
   scopeButtons.forEach((button) => {
     button.addEventListener("click", () => setScope(button.dataset.searchScope ?? "all"));
   });
+
+  function readInitialSearchQuery(): string {
+    try {
+      const raw = new URLSearchParams(window.location.search).get("q");
+      return raw ? raw.trim().slice(0, 120) : "";
+    } catch {
+      return "";
+    }
+  }
+
+  const initialQuery = readInitialSearchQuery();
+  if (initialQuery && input) {
+    input.value = initialQuery;
+    const context = document.querySelector<HTMLElement>("[data-search-context]");
+    void openModal({
+      productSlug: context?.dataset.productSlug,
+      productTitle: context?.dataset.productTitle,
+    });
+  }
 </script>
