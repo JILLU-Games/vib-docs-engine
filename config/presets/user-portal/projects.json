@@ -1,26 +1,13 @@
 [
   {
-    "slug": "invio",
+    "repoUrl": "https://github.com/YOUR_ORG/invio.git",
+    "docsType": "users",
     "category": "Desktop Apps",
     "accentColor": "#7C3AED",
-    "repoUrl": "https://github.com/YOUR_ORG/invio.git",
-    "branch": "main",
-    "docsPath": "docs",
     "ctaLabel": "Get License",
     "ctaUrl": "https://vib.tools/invio",
     "title": "Invio",
     "description": "Desktop guides and setup instructions for Invio."
   },
-  {
-    "slug": "inboxchecker",
-    "category": "Web Tools",
-    "accentColor": "#0EA5E9",
-    "repoUrl": "https://github.com/YOUR_ORG/inboxchecker.git",
-    "branch": "main",
-    "docsPath": "docs",
-    "ctaLabel": "Open InboxChecker",
-    "ctaUrl": "https://vib.tools/inboxchecker",
-    "title": "InboxChecker",
-    "description": "Email deliverability and inbox placement guides."
-  }
+  "https://github.com/YOUR_ORG/inboxchecker.git"
 ]

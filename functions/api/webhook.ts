@@ -4,6 +4,7 @@ export interface WebhookEnv {
   CF_DEPLOY_HOOK_URL?: string;
   DOCS_DEPLOY_HOOK_URL?: string;
   WEBHOOK_SECRET?: string;
+  ALLOW_UNAUTHENTICATED_WEBHOOK?: string;
   ALLOWED_BRANCHES?: string;
   [key: string]: string | undefined;
 }
@@ -73,10 +74,47 @@ async function verifyHmacSha256(
   return timingSafeEqualString(expectedHex, normalizedHex);
 }
 
-function parseBranchFromPayload(rawBody: string): string | null {
-  if (!rawBody.trim()) return null;
+function isAllowedDeployHookUrl(rawUrl: string): boolean {
   try {
-    const parsed = JSON.parse(rawBody) as { ref?: unknown };
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol === "https:") return true;
+    return (
+      parsed.protocol === "http:" &&
+      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isPingWebhookEvent(request: Request): boolean {
+  const eventName = (
+    request.headers.get("x-github-event") ??
+    request.headers.get("x-gitea-event") ??
+    request.headers.get("x-forgejo-event") ??
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  return eventName === "ping";
+}
+
+function parseBranchFromPayload(
+  rawBody: string,
+  contentType = "",
+): string | null {
+  if (!rawBody.trim()) return null;
+  let jsonSource = rawBody;
+  if (
+    contentType.toLowerCase().includes("application/x-www-form-urlencoded") ||
+    rawBody.trimStart().startsWith("payload=")
+  ) {
+    const formPayload = new URLSearchParams(rawBody).get("payload");
+    if (!formPayload) return null;
+    jsonSource = formPayload;
+  }
+  try {
+    const parsed = JSON.parse(jsonSource) as { ref?: unknown };
     if (typeof parsed?.ref !== "string") return null;
     const ref = parsed.ref.trim();
     if (!ref) return null;
@@ -109,9 +147,33 @@ export async function onRequestPost(
     );
   }
 
+  if (!isAllowedDeployHookUrl(deployHookUrl)) {
+    return Response.json(
+      {
+        ok: false,
+        error: "CF_DEPLOY_HOOK_URL must be a valid HTTPS URL.",
+      },
+      { status: 501, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const rawBody = await request.text();
   const configuredSecret = (env.WEBHOOK_SECRET ?? "").trim();
-  if (configuredSecret) {
+  const allowUnauthenticated =
+    (env.ALLOW_UNAUTHENTICATED_WEBHOOK ?? "").trim().toLowerCase() === "true";
+
+  if (!configuredSecret) {
+    if (!allowUnauthenticated) {
+      return Response.json(
+        {
+          ok: false,
+          error:
+            "WEBHOOK_SECRET is not configured in Cloudflare Pages environment variables.",
+        },
+        { status: 501, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+  } else {
     const providedSecret = extractDirectSecret(request);
     const hasValidDirectSecret =
       Boolean(providedSecret) &&
@@ -140,6 +202,18 @@ export async function onRequestPost(
     }
   }
 
+  if (isPingWebhookEvent(request)) {
+    return Response.json(
+      {
+        ok: true,
+        triggered: false,
+        skipped: true,
+        reason: "ping_event",
+      },
+      { status: 200, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const allowedBranchesRaw = (env.ALLOWED_BRANCHES ?? "").trim();
   if (allowedBranchesRaw) {
     const allowedBranches = new Set(
@@ -148,7 +222,10 @@ export async function onRequestPost(
         .map((branch) => branch.trim())
         .filter(Boolean),
     );
-    const payloadBranch = parseBranchFromPayload(rawBody);
+    const payloadBranch = parseBranchFromPayload(
+      rawBody,
+      request.headers.get("content-type") ?? "",
+    );
     if (payloadBranch !== null && !allowedBranches.has(payloadBranch)) {
       return Response.json(
         {
@@ -163,17 +240,23 @@ export async function onRequestPost(
     }
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10_000);
   try {
     const hookResponse = await fetch(deployHookUrl, {
       method: "POST",
       headers: { "User-Agent": "vib-docs-engine-cloudflare-function" },
+      signal: controller.signal,
     });
+    const ok = hookResponse.ok;
+    const status = hookResponse.status;
+    await hookResponse.body?.cancel().catch(() => {});
 
-    if (!hookResponse.ok) {
+    if (!ok) {
       return Response.json(
         {
           ok: false,
-          error: `Deploy hook returned HTTP ${hookResponse.status}.`,
+          error: `Deploy hook returned HTTP ${status}.`,
         },
         { status: 502, headers: { "Cache-Control": "no-store" } },
       );
@@ -195,6 +278,8 @@ export async function onRequestPost(
       },
       { status: 502, headers: { "Cache-Control": "no-store" } },
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

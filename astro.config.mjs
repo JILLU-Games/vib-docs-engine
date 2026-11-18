@@ -184,10 +184,21 @@ export default defineConfig({
     astroExpressiveCode({
       themes: ["github-dark", "github-light"],
     }),
-    mdx({
-      remarkPlugins: sharedRemarkPlugins,
-    }),
+    mdx(),
     sitemap(),
+    {
+      name: "vib-prune-public-governance-docs",
+      hooks: {
+        "astro:build:done": async ({ dir }) => {
+          const { promises: fs } = await import("node:fs");
+          const { fileURLToPath } = await import("node:url");
+          const outDir = fileURLToPath(dir);
+          for (const governanceFile of ["MANIFEST.md", "README.md"]) {
+            await fs.rm(path.join(outDir, governanceFile), { force: true });
+          }
+        },
+      },
+    },
   ],
   vite: {
     plugins: [tailwindcss(), servePagefindInDev()],

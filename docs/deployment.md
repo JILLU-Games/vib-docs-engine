@@ -11,9 +11,11 @@ npm run export-portal -- --portal user --out ../docs-vib-tools
 npm run export-portal -- --portal dev --out ../developer-vibtools-io
 ```
 
-The exporter copies the engine source while excluding dependencies, build output, generated documentation, generated logos, and the presets directory. It installs the matching preset files as each export's active `config/site.config.json` and `config/projects.json`, while preserving the `.gitkeep` files in generated folders.
+The exporter copies the engine source while excluding dependencies, build output, generated documentation, generated logos, development notes, `bun.lock`, and the presets directory (and omits engine `.vibtools/` when exporting `--portal user`). It installs the matching preset files as each export's active `config/site.config.json` (`"portalType": "users"` for `docs.vib.tools` and `"portalType": "developer"` for `developer.vibtools.io`) and `config/projects.json`, updates `wrangler.toml` (`name = "docs-vib-tools"` vs `name = "developer-vibtools-io"`) and `public/site.webmanifest` branding/theme color, and preserves the `.gitkeep` files in generated folders.
 
-Before building, replace all `YOUR_ORG` repository URLs in the user and developer presets with real documentation repositories. Review each CTA, category, branch, and `docsPath`. Then initialize and push each exported directory to its own deployment repository:
+Because `scripts/sync-docs.mjs` matches each portal's `portalType` against each repository's `.vibtools/docs.config.json` (or `config.docs.json`) `docsType` and `targets` block, a shared repository URL can live in one or both portal registries while checking out only the matching audience's `docsPath`. See [`.vibtools/` Configuration](vibtools-config.md).
+
+Before building in production (`CF_PAGES=1` or `STRICT_SYNC=1`), replace all `YOUR_ORG` repository URLs in the user and developer presets with real documentation repositories (or add new `.vibtools/` repositories with `npm run add-project -- --url <repoUrl>`). Production CI builds reject unreplaced `YOUR_ORG` starter placeholders automatically. Review each CTA, category, branch, and `docsPath`. Then initialize and push each exported directory to its own deployment repository:
 
 ```sh
 cd ../docs-vib-tools
@@ -30,17 +32,17 @@ Create a separate Pages project for each exported Git repository. The repository
 
 - Build command: `npm run build` (or `npm run cf:build`)
 - Build output directory: `dist`
-- Node.js version: pinned automatically to `22.24.0` via `.node-version` and `.nvmrc` (matching Astro 7's `>=22.23.4` requirement), with `engines.node >=22.0.0` in `package.json`.
+- Node.js version: pinned automatically to `22.24.0` via `.node-version` and `.nvmrc` (matching Astro 7's `>=22.23.4` requirement and `engines.node >=22.23.4` in `package.json`).
 - Private repository credentials:
   - Single shared org/account token: add `GIT_TOKEN` as a protected Pages environment secret. Add `GIT_USERNAME` only if that Git host needs a non-default username.
   - Multiple independent private repositories: create distinct Pages environment secrets (e.g., `GIT_TOKEN_APP1`, `GIT_TOKEN_APP2`) and reference them per project via `"secretKey": "$GIT_TOKEN_APP1"` in `config/projects.json`.
 - Static Edge & Functions routing:
-  - `public/_headers`: configures immutable caching for `/_astro/*`, revalidation for `/pagefind/*`, `Content-Type: text/plain; charset=utf-8` + cache headers for `/llms.txt`, `/*/llms.txt`, and `/robots.txt`, plus security headers.
+  - `public/_headers`: configures immutable caching for `/_astro/*`, revalidation for `/pagefind/*`, `Content-Type` + cache headers for `/llms.txt`, `/llms-full.txt`, `/*/llms.txt`, `/*.md`, `/site.webmanifest`, and `/robots.txt`, plus security headers. Internal `public/MANIFEST.md` and `public/README.md` governance indexes are automatically pruned from `dist/` at build completion.
   - `public/_redirects`: holds relative-path redirect rules (Cloudflare Pages `_redirects` does not support custom-domain-to-domain redirects).
   - `public/_routes.json`: restricts Cloudflare Pages Functions invocation strictly to `/api/*` so all documentation pages serve directly from the static CDN edge.
 - Built-in Pages Functions (`functions/api/`):
-  - `GET /api/health`: returns JSON health and runtime readiness status (`405` on non-GET).
-  - `POST /api/webhook`: optional authenticated webhook relay. Set `CF_DEPLOY_HOOK_URL` (the portal's Cloudflare Pages Deploy Hook URL) and `WEBHOOK_SECRET` in Pages environment variables. Supports GitHub (`X-Hub-Signature-256`), Gitea/Forgejo (`X-Gitea-Signature`, `X-Forgejo-Signature`) HMAC-SHA256 signatures, `X-Gitlab-Token`, `X-Webhook-Secret`, and `Authorization: Bearer <secret>`. Optionally set `ALLOWED_BRANCHES` (e.g., `main,docs`) to ignore pushes to other branches.
+  - `GET /api/health` & `HEAD /api/health`: returns JSON health and runtime readiness status (`200` on `GET`/`HEAD`, `405` on other methods).
+  - `POST /api/webhook`: optional authenticated webhook relay. Set `CF_DEPLOY_HOOK_URL` (the portal's HTTPS Cloudflare Pages Deploy Hook URL) and `WEBHOOK_SECRET` in Pages environment variables. `POST /api/webhook` fails closed with HTTP `501` when `WEBHOOK_SECRET` is missing unless `ALLOW_UNAUTHENTICATED_WEBHOOK="true"` is explicitly configured for development. Supports GitHub (`X-Hub-Signature-256`), Gitea/Forgejo (`X-Gitea-Signature`, `X-Forgejo-Signature`) HMAC-SHA256 signatures, `X-Gitlab-Token`, `X-Webhook-Secret`, and `Authorization: Bearer <secret>`, ignores initial `ping` events with HTTP `200`, and parses both JSON and `application/x-www-form-urlencoded` payloads for `ALLOWED_BRANCHES` (e.g., `main,docs`).
 - Attach `docs.vib.tools` to the user portal and `developer.vibtools.io` to the developer portal.
 - For the legacy `docs.vibtools.io` hostname, add a Cloudflare Zone Redirect Rule in the dashboard: match `docs.vibtools.io/*`, redirect to `https://docs.vib.tools/$1`, status `301`.
 
@@ -48,7 +50,7 @@ Create a separate protected Pages build hook for each portal. Product repository
 
 ## 3. Deploy to a VPS with Docker or Coolify
 
-The repository's multi-stage `Dockerfile` builds the static site in `node:22-alpine` and copies only `dist/` into `nginx:alpine`. `nginx.conf` enables gzip, long-lived caching for fingerprinted Astro/Pagefind assets, and the static 404 route.
+The repository's multi-stage `Dockerfile` installs `git` and `openssh-client` in `node:22-alpine` for sparse-checkout builds and copies only `dist/` into `nginx:alpine`. `nginx.conf` mirrors `public/_headers` with gzip, global security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`), immutable 1-year caching for `/_astro/*`, 1-hour `must-revalidate` caching for `/pagefind/*`, `text/markdown; charset=utf-8` / `text/plain; charset=utf-8` responses for `.md` and `llms.txt`, and the static 404 route.
 
 For private docs repositories, provide a BuildKit secret rather than committing a token or putting it in the final image:
 
@@ -61,10 +63,10 @@ In Coolify, configure the Git repository, Dockerfile build, port `80`, portal do
 
 ## 4. Connect product repositories
 
-For a GitHub product repository, copy `templates/github-notify-docs.yml` to `.github/workflows/notify-docs.yml`. Add the repository Actions secret `DOCS_DEPLOY_HOOK_URL` with the protected build-hook URL for the correct portal. The workflow listens for pushes to `main` that modify `docs/**` and sends a POST request to the hook.
+For a GitHub product repository, copy `templates/github-notify-docs.yml` to `.github/workflows/notify-docs.yml`. Add the repository Actions secret `DOCS_DEPLOY_HOOK_URL` with the protected build-hook URL for the correct portal. The workflow listens for pushes to `main` that modify `docs/**` or `.vibtools/**` and sends a POST request to the hook.
 
 For GitLab, Gitea/Forgejo, or a VPS receiver, use `templates/webhook-trigger.sh` as the curl request. Store `DOCS_DEPLOY_HOOK_URL` as a protected CI/webhook secret. Configure source-host signature verification and path/event filters where available; do not expose hook URLs in logs or source code.
 
 ## Final launch checks
 
-Before DNS cutover, run `npm run verify` in each portal repository. Confirm the selected preset and real repository URLs, private-repo access, static routes, Pagefind index, sitemap, robots, global and per-product `llms.txt`, and 404 output. Test one product docs push and confirm only its intended portal rebuilds. Preview a local build with `npm run preview` before publishing changes.
+Before DNS cutover, run `npm test`, `npm run lint`, and `npm run verify` in each portal repository. Confirm the selected preset and real repository URLs, private-repo access, static routes, Pagefind index, sitemap, robots, global and per-product `llms.txt`, per-page `.md` exports, and 404 output. Test one product docs push and confirm only its intended portal rebuilds. Preview a local build with `npm run preview` before publishing changes.

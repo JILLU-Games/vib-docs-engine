@@ -23,16 +23,26 @@ export function onRequestGet(): Response {
   );
 }
 
+export function onRequestHead(): Response {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
 export function onRequest(): Response {
   return Response.json(
     {
       ok: false,
-      error: "Method Not Allowed. Use GET /api/health.",
+      error: "Method Not Allowed. Use GET or HEAD /api/health.",
     },
     {
       status: 405,
       headers: {
-        Allow: "GET",
+        Allow: "GET, HEAD",
         "Cache-Control": "no-store",
       },
     },

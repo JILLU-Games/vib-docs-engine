@@ -52,6 +52,7 @@ export interface SiteConfig {
   brandName: string;
   brandLogo: string;
   defaultAccent: string;
+  portalType?: "users" | "developer" | "all";
   navLinks: Array<{ label: string; href: string }>;
 }
 

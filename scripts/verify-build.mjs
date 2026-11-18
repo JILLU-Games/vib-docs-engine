@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 
 const projectRoot = path.resolve(process.cwd());
 const distDirectory = path.join(projectRoot, "dist");
@@ -19,6 +20,217 @@ async function exists(filePath) {
   } catch {
     return false;
   }
+}
+
+function isWithin(parent, candidate) {
+  const relative = path.relative(parent, candidate);
+  return (
+    relative === "" ||
+    (!path.isAbsolute(relative) &&
+      relative !== ".." &&
+      !relative.startsWith(`..${path.sep}`))
+  );
+}
+
+async function loadVibtoolsConfigHelpers() {
+  const sourcePath = path.join(
+    projectRoot,
+    "src",
+    "utils",
+    "vibtoolsConfig.ts",
+  );
+  const source = await fs.readFile(sourcePath, "utf8");
+  const javascript = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  const moduleUrl = `data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`;
+  return import(moduleUrl);
+}
+
+function canonicalRepoKey(repoUrl) {
+  const trimmed = String(repoUrl || "").trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      const cleanPath = parsed.pathname
+        .replace(/\/+$/, "")
+        .replace(/\.git$/i, "");
+      return `${parsed.hostname.toLowerCase()}${cleanPath.toLowerCase()}`;
+    } catch {
+      return trimmed.toLowerCase();
+    }
+  }
+  return trimmed.replace(/\/+$/, "").replace(/\.git$/i, "").toLowerCase();
+}
+
+async function validateVibtoolsAndRegistry() {
+  const errors = [];
+  const vibtoolsHelpers = await loadVibtoolsConfigHelpers();
+
+  const vibtoolsDir = path.join(projectRoot, vibtoolsHelpers.VIBTOOLS_DIR);
+  const vibtoolsStat = await fs.lstat(vibtoolsDir).catch(() => null);
+  if (vibtoolsStat) {
+    if (vibtoolsStat.isSymbolicLink() || !vibtoolsStat.isDirectory()) {
+      errors.push(".vibtools must be a real directory inside the repository root");
+    } else {
+      const foundConfigFiles = [];
+      for (const fileName of vibtoolsHelpers.VIBTOOLS_CONFIG_FILENAMES) {
+        const candidatePath = path.join(vibtoolsDir, fileName);
+        const candidateStat = await fs.lstat(candidatePath).catch(() => null);
+        if (candidateStat) {
+          if (candidateStat.isSymbolicLink() || !candidateStat.isFile()) {
+            errors.push(`.vibtools/${fileName} must be a regular file`);
+          } else {
+            foundConfigFiles.push(fileName);
+          }
+        }
+      }
+
+      if (foundConfigFiles.length > 1) {
+        errors.push(
+          `Conflicting .vibtools configs found (${foundConfigFiles.join(", ")}); keep only one canonical config file`,
+        );
+      } else if (foundConfigFiles.length === 0) {
+        errors.push(
+          `.vibtools directory exists without ${vibtoolsHelpers.VIBTOOLS_CONFIG_FILENAMES.join(" or ")}`,
+        );
+      } else {
+        const activeFile = foundConfigFiles[0];
+        try {
+          const parsedJson = JSON.parse(
+            await fs.readFile(path.join(vibtoolsDir, activeFile), "utf8"),
+          );
+          const parsedConfig =
+            vibtoolsHelpers.parseVibtoolsRepoConfig(parsedJson);
+          if (!parsedConfig.success) {
+            errors.push(`.vibtools/${activeFile}: ${parsedConfig.error}`);
+          } else {
+            const configData = parsedConfig.data;
+            const docsPathsToCheck = new Set();
+            const logoPathsToCheck = new Set();
+            if (configData.docsPath) docsPathsToCheck.add(configData.docsPath);
+            if (configData.logoPath) logoPathsToCheck.add(configData.logoPath);
+            for (const targetKey of ["users", "developer"]) {
+              const target = configData.targets?.[targetKey];
+              if (target?.docsPath) docsPathsToCheck.add(target.docsPath);
+              if (target?.logoPath) logoPathsToCheck.add(target.logoPath);
+            }
+
+            for (const relDocsPath of docsPathsToCheck) {
+              const absDocsPath = path.resolve(projectRoot, relDocsPath);
+              if (!isWithin(projectRoot, absDocsPath)) {
+                errors.push(`.vibtools/${activeFile}: docsPath "${relDocsPath}" escapes repository`);
+                continue;
+              }
+              const stat = await fs.lstat(absDocsPath).catch(() => null);
+              if (!stat || stat.isSymbolicLink() || !stat.isDirectory()) {
+                errors.push(`.vibtools/${activeFile}: docsPath "${relDocsPath}" is missing or not a directory`);
+              }
+            }
+
+            for (const relLogoPath of logoPathsToCheck) {
+              const absLogoPath = path.resolve(projectRoot, relLogoPath);
+              if (!isWithin(projectRoot, absLogoPath)) {
+                errors.push(`.vibtools/${activeFile}: logoPath "${relLogoPath}" escapes repository`);
+                continue;
+              }
+              const stat = await fs.lstat(absLogoPath).catch(() => null);
+              if (!stat || stat.isSymbolicLink() || !stat.isFile()) {
+                errors.push(`.vibtools/${activeFile}: logoPath "${relLogoPath}" is missing or not a regular file`);
+              } else if (stat.size === 0 || stat.size > 2 * 1024 * 1024) {
+                errors.push(`.vibtools/${activeFile}: logoPath "${relLogoPath}" must be between 1 byte and 2 MB`);
+              }
+            }
+          }
+        } catch (error) {
+          errors.push(`.vibtools/${activeFile} is invalid JSON: ${error.message}`);
+        }
+      }
+    }
+  }
+
+  const siteConfigPath = path.join(projectRoot, "config", "site.config.json");
+  if (await exists(siteConfigPath)) {
+    try {
+      const siteJson = JSON.parse(await fs.readFile(siteConfigPath, "utf8"));
+      if (
+        siteJson.portalType !== undefined &&
+        !vibtoolsHelpers.PORTAL_TYPES.includes(siteJson.portalType)
+      ) {
+        errors.push(
+          `config/site.config.json: portalType must be one of ${vibtoolsHelpers.PORTAL_TYPES.join(", ")}`,
+        );
+      }
+    } catch (error) {
+      errors.push(`config/site.config.json is invalid JSON: ${error.message}`);
+    }
+  }
+
+  const projectsConfigPath = path.join(projectRoot, "config", "projects.json");
+  if (await exists(projectsConfigPath)) {
+    try {
+      const projectsJson = JSON.parse(
+        await fs.readFile(projectsConfigPath, "utf8"),
+      );
+      if (!Array.isArray(projectsJson)) {
+        errors.push("config/projects.json must contain a JSON array");
+      } else {
+        const seenRepos = new Map();
+        const seenExplicitSlugs = new Set();
+        for (const [index, rawEntry] of projectsJson.entries()) {
+          const parsed = vibtoolsHelpers.normalizeRegistryEntry(rawEntry);
+          if (!parsed.success) {
+            errors.push(`config/projects.json[${index}]: ${parsed.error}`);
+            continue;
+          }
+          const entry = parsed.data;
+          if (entry.slug) {
+            if (seenExplicitSlugs.has(entry.slug)) {
+              errors.push(
+                `config/projects.json[${index}]: duplicate explicit slug "${entry.slug}"`,
+              );
+            }
+            seenExplicitSlugs.add(entry.slug);
+          }
+          const repoKey = canonicalRepoKey(entry.repoUrl);
+          if (repoKey) {
+            const slugMarker = entry.slug || "__auto__";
+            if (!seenRepos.has(repoKey)) seenRepos.set(repoKey, new Set());
+            const existingMarkers = seenRepos.get(repoKey);
+            if (existingMarkers.has(slugMarker) || existingMarkers.has("__auto__") || slugMarker === "__auto__" && existingMarkers.size > 0) {
+              errors.push(
+                `config/projects.json[${index}]: duplicate repoUrl "${entry.repoUrl}" without distinct explicit slug overrides`,
+              );
+            }
+            existingMarkers.add(slugMarker);
+          }
+          const isStrictVerify =
+            process.env.CF_PAGES === "1" ||
+            process.env.CF_PAGES === "true" ||
+            process.env.STRICT_SYNC === "1" ||
+            process.env.STRICT_SYNC === "true" ||
+            process.argv.includes("--strict");
+          if (
+            isStrictVerify &&
+            typeof entry.repoUrl === "string" &&
+            entry.repoUrl.includes("YOUR_ORG")
+          ) {
+            errors.push(
+              `config/projects.json[${index}]: starter placeholder "${entry.repoUrl}" is not allowed in strict/CF_PAGES builds`,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      errors.push(`config/projects.json is invalid JSON: ${error.message}`);
+    }
+  }
+
+  return errors;
 }
 
 async function walkHtml(directory) {
@@ -226,6 +438,16 @@ async function main() {
       }
     }
 
+    for (const leakedFile of ["MANIFEST.md", "README.md"]) {
+      if (await exists(path.join(distDirectory, leakedFile))) {
+        cloudflareErrors.push(
+          `dist/${leakedFile} must not be published in the static output root`,
+        );
+      }
+    }
+
+    const vibtoolsErrors = await validateVibtoolsAndRegistry();
+
     for (const project of manifest.projects ?? []) {
       if (!project?.slug || !Array.isArray(project.flatPages)) {
         missingFiles.push(
@@ -309,7 +531,13 @@ async function main() {
       }
     }
 
-    if (missingFiles.length || brokenLinks.length || cloudflareErrors.length || seoErrors.length) {
+    if (
+      missingFiles.length ||
+      brokenLinks.length ||
+      cloudflareErrors.length ||
+      vibtoolsErrors.length ||
+      seoErrors.length
+    ) {
       console.error("Build verification failed.");
       if (missingFiles.length) {
         console.error("Missing files:");
@@ -318,6 +546,10 @@ async function main() {
       if (cloudflareErrors.length) {
         console.error("Cloudflare configuration errors:");
         for (const err of cloudflareErrors) console.error(`  - ${err}`);
+      }
+      if (vibtoolsErrors.length) {
+        console.error(".vibtools / registry errors:");
+        for (const err of vibtoolsErrors) console.error(`  - ${err}`);
       }
       if (seoErrors.length) {
         console.error("SEO / AI verification errors:");

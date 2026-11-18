@@ -18,6 +18,10 @@ const excludedNames = new Set([
   "artifacts",
 ]);
 const generatedRoots = ["src/content/docs", "src/generated", "public/logos"];
+const portalWranglerNames = {
+  user: "docs-vib-tools",
+  dev: "developer-vibtools-io",
+};
 
 function parseArgs(args) {
   const options = {};
@@ -57,7 +61,7 @@ function isWithin(parent, candidate) {
   );
 }
 
-function shouldSkip(relativePath) {
+function shouldSkip(relativePath, portal) {
   const normalized = relativePath.split(path.sep).join("/");
   const segments = normalized.split("/");
   if (
@@ -66,6 +70,8 @@ function shouldSkip(relativePath) {
     )
   )
     return true;
+  if (portal === "user" && segments[0] === ".vibtools") return true;
+  if (normalized === "bun.lock" || normalized === "bun.lockb") return true;
   if (segments[0] === "config" && segments[1] === "presets") return true;
 
   for (const generatedRoot of generatedRoots) {
@@ -86,6 +92,7 @@ function shouldSkip(relativePath) {
 async function copyEngine(
   sourceDirectory,
   destinationDirectory,
+  portal,
   relativeDirectory = "",
 ) {
   await fs.mkdir(destinationDirectory, { recursive: true });
@@ -93,13 +100,13 @@ async function copyEngine(
     withFileTypes: true,
   })) {
     const relativePath = path.join(relativeDirectory, entry.name);
-    if (shouldSkip(relativePath)) continue;
+    if (shouldSkip(relativePath, portal)) continue;
     const sourcePath = path.join(sourceDirectory, entry.name);
     const destinationPath = path.join(destinationDirectory, entry.name);
     if (entry.isSymbolicLink())
       throw new Error(`Refusing to export symbolic link: ${relativePath}`);
     if (entry.isDirectory()) {
-      await copyEngine(sourcePath, destinationPath, relativePath);
+      await copyEngine(sourcePath, destinationPath, portal, relativePath);
     } else if (entry.isFile()) {
       await fs.mkdir(path.dirname(destinationPath), { recursive: true });
       await fs.copyFile(sourcePath, destinationPath);
@@ -163,7 +170,7 @@ async function main() {
     await fs.mkdir(parentDirectory, { recursive: true });
     stagingDirectory = `${outputDirectory}.tmp-${process.pid}`;
     await fs.mkdir(stagingDirectory, { recursive: false });
-    await copyEngine(projectRoot, stagingDirectory);
+    await copyEngine(projectRoot, stagingDirectory, options.portal);
     const targetConfigDirectory = path.join(stagingDirectory, "config");
     await fs.mkdir(targetConfigDirectory, { recursive: true });
     await fs.writeFile(
@@ -174,6 +181,45 @@ async function main() {
       path.join(targetConfigDirectory, "projects.json"),
       `${JSON.stringify(presetData["projects.json"], null, 2)}\n`,
     );
+
+    const wranglerPath = path.join(stagingDirectory, "wrangler.toml");
+    const targetProjectName = portalWranglerNames[options.portal];
+    if (targetProjectName) {
+      try {
+        const wranglerRaw = await fs.readFile(wranglerPath, "utf8");
+        const updatedWrangler = wranglerRaw.replace(
+          /^name\s*=\s*"[^"]*"/m,
+          `name = "${targetProjectName}"`,
+        );
+        await fs.writeFile(wranglerPath, updatedWrangler, "utf8");
+      } catch (error) {
+        if (error?.code !== "ENOENT") throw error;
+      }
+    }
+
+    const webmanifestPath = path.join(stagingDirectory, "public", "site.webmanifest");
+    try {
+      const siteCfg = presetData["site.config.json"];
+      const manifestRaw = await fs.readFile(webmanifestPath, "utf8");
+      const manifestObj = JSON.parse(manifestRaw);
+      if (typeof siteCfg.portalTitle === "string" && siteCfg.portalTitle.trim()) {
+        manifestObj.name = siteCfg.portalTitle.trim();
+      }
+      if (typeof siteCfg.brandName === "string" && siteCfg.brandName.trim()) {
+        manifestObj.short_name = siteCfg.brandName.trim();
+      }
+      if (typeof siteCfg.defaultAccent === "string" && siteCfg.defaultAccent.trim()) {
+        manifestObj.theme_color = siteCfg.defaultAccent.trim();
+      }
+      await fs.writeFile(
+        webmanifestPath,
+        `${JSON.stringify(manifestObj, null, 2)}\n`,
+        "utf8",
+      );
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+
     await fs.rename(stagingDirectory, outputDirectory);
     stagingDirectory = undefined;
 
@@ -182,11 +228,10 @@ async function main() {
       `Next: cd "${outputDirectory}" && git init && npm install && npm run build`,
     );
     if (
-      presetData["projects.json"].some(
-        (project) =>
-          typeof project.repoUrl === "string" &&
-          project.repoUrl.includes("YOUR_ORG"),
-      )
+      presetData["projects.json"].some((project) => {
+        const repoUrl = typeof project === "string" ? project : project?.repoUrl;
+        return typeof repoUrl === "string" && repoUrl.includes("YOUR_ORG");
+      })
     ) {
       console.log(
         "Replace the preset's YOUR_ORG repository URLs before building.",

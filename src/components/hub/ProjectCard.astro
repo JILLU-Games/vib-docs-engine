@@ -1,5 +1,5 @@
 ---
-import { getMonogram, resolveAccentColor } from "../../utils/theme";
+import { formatVersionBadge, getMonogram, resolveAccentColor } from "../../utils/theme";
 
 interface Project {
   slug: string;
@@ -18,7 +18,7 @@ interface Props {
 const { project } = Astro.props;
 const title = project.title || project.slug;
 const description = project.description?.trim() || "Documentation and product guides.";
-const version = project.version === undefined ? "" : String(project.version).trim();
+const versionBadge = formatVersionBadge(project.version);
 const accent = resolveAccentColor(project.accentColor);
 const monogram = getMonogram(title);
 ---
@@ -54,9 +54,9 @@ const monogram = getMonogram(title);
     <span class="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text-primary)]">
       {title}
     </span>
-    {version && (
+    {versionBadge && (
       <span class="shrink-0 rounded border border-[var(--border-hairline)] px-1.5 py-0.5 font-mono text-[11px] leading-4 text-[var(--text-muted)]">
-        v{version}
+        {versionBadge}
       </span>
     )}
   </div>

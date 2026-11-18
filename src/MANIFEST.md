@@ -11,4 +11,4 @@
 | `layouts/`          | Base, Hub, and docs page shells                                                                           |
 | `pages/`            | Static HTML routes, AI text/Markdown endpoints (`llms.txt`, `llms-full.txt`, `*.md`), and `robots.txt`; no local Markdown indexes because Astro treats Markdown there as routes |
 | `styles/`           | Tailwind/global design tokens and prose rules                                                             |
-| `utils/`            | Manifest contracts, theme helpers, sidebar builder, search helpers, SEO JSON-LD, and AI LLMs utilities    |
+| `utils/`            | Manifest contracts, `.vibtools/` config resolver, theme helpers, sidebar builder, search helpers, SEO JSON-LD, and AI LLMs utilities |

@@ -5,6 +5,7 @@
   "brandName": "Vib Tools",
   "brandLogo": "/vib-tools-logo.png",
   "defaultAccent": "#7C3AED",
+  "portalType": "users",
   "navLinks": [
     {
       "label": "Developer Docs",

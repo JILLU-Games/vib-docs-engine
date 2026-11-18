@@ -24,13 +24,13 @@
   Content-Type: text/plain; charset=utf-8
   Cache-Control: public, max-age=300
 
-/*/*.md
+/*.md
   Content-Type: text/markdown; charset=utf-8
   Cache-Control: public, max-age=300
 
-/*/*/*.md
-  Content-Type: text/markdown; charset=utf-8
-  Cache-Control: public, max-age=300
+/site.webmanifest
+  Content-Type: application/manifest+json; charset=utf-8
+  Cache-Control: public, max-age=3600
 
 /robots.txt
   Content-Type: text/plain; charset=utf-8

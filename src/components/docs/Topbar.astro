@@ -1,6 +1,6 @@
 ---
 import { ArrowUpRight, Check, ChevronDown, Menu, Search, X } from "lucide-astro";
-import { getMonogram, resolveAccentColor } from "../../utils/theme";
+import { formatVersionBadge, getMonogram, resolveAccentColor } from "../../utils/theme";
 import type { ManifestProject } from "../../utils/manifest";
 import ThemeToggle from "../ui/ThemeToggle.astro";
 
@@ -11,6 +11,7 @@ interface Props {
 
 const { product, projects } = Astro.props;
 const productAccent = resolveAccentColor(product.accentColor);
+const versionBadge = formatVersionBadge(product.version);
 const isExternalCta = product.ctaUrl ? /^https?:\/\//i.test(product.ctaUrl) : false;
 ---
 
@@ -48,9 +49,9 @@ const isExternalCta = product.ctaUrl ? /^https?:\/\//i.test(product.ctaUrl) : fa
             </span>
           )}
           <span class="max-w-[54px] truncate text-xs font-semibold sm:max-w-36 sm:text-sm">{product.title}</span>
-          {product.version && (
+          {versionBadge && (
             <span class="hidden shrink-0 rounded border border-[var(--border-hairline)] px-1 py-0.5 font-mono text-[10px] leading-4 text-[var(--text-muted)] sm:inline-flex">
-              v{product.version}
+              {versionBadge}
             </span>
           )}
           <ChevronDown class="size-3.5 shrink-0 text-[var(--text-muted)] transition-transform group-open/product:rotate-180" aria-hidden="true" />

@@ -32,16 +32,17 @@ Static AI indexes are available at `/llms.txt` and `/<product-slug>/llms.txt`. `
 
 ## Configuration overview
 
-- `config/site.config.json` controls portal title, subtitle, canonical domain, brand identity, default accent, and navigation.
-- `config/projects.json` lists products, categories, Git remotes, branches, docs paths, accents, CTA destinations, and optional metadata fallbacks.
-- Categories are derived from configured products. Adding a category does not require code changes.
+- `config/site.config.json` controls portal title, subtitle, canonical domain, brand identity, default accent, `portalType` (`"users"`, `"developer"`, or `"all"`), and navigation.
+- `config/projects.json` accepts bare Git repository URLs (`"https://..."`) for repos that include `.vibtools/docs.config.json` (or `.vibtools/config.docs.json`), or override objects with explicit fields and private-repo `secretKey` references.
+- `.vibtools/docs.config.json` (alias `.vibtools/config.docs.json`) lets any repository declare its own `docsType`, dual `targets.users` / `targets.developer`, `docsPath`, `logoPath`, `slug`, `category`, `title`, `description`, `version`, `accentColor`, and CTA metadata in one place.
+- Categories are derived from resolved products. Adding a category does not require code changes.
 
 Synchronized files under `src/content/docs/`, generated data under `src/generated/`, and synchronized logos under `public/logos/` are build artifacts and are ignored by Git except for `.gitkeep` files. Do not edit generated files by hand.
 
 ## Deployment
 
-Configure the host to build from the portal's own deployment repository. A documentation source repository webhook should trigger the host's protected build hook; the build fetches current source content and publishes a complete static output. For Cloudflare Pages, set the build command to `npm run build`, the output directory to `dist`, and use a protected Pages build hook. For a self-hosted VPS, build the Docker image and have Nginx serve only the resulting static files. The receiver must verify webhook authenticity and avoid exposing a shell command publicly. Build into staging and replace live output only after all build steps succeed.
+Configure the host to build from the portal's own deployment repository. A documentation source repository webhook should trigger the host's protected build hook; the build fetches `.vibtools/` and only the matching documentation directories with 2-step Git sparse checkout, then publishes a complete static output. For Cloudflare Pages, set the build command to `npm run build`, the output directory to `dist`, and use a protected Pages build hook. For a self-hosted VPS, build the Docker image and have Nginx serve only the resulting static files. The receiver must verify webhook authenticity and avoid exposing a shell command publicly. Build into staging and replace live output only after all build steps succeed.
 
 For private repositories, pass `GIT_TOKEN` as a BuildKit secret rather than a committed file or Docker `ENV` value. Example: `docker buildx build --secret id=git_token,env=GIT_TOKEN -t vib-docs-engine .`. The final Nginx image contains only `dist/` and Nginx configuration. Run it with `docker run --rm -p 8080:80 vib-docs-engine` and visit `http://localhost:8080`.
 
-See [Adding Projects](adding-projects.md) for product setup and webhook steps, and the architecture/feature specifications in `project/` for the implementation contract.
+See [`.vibtools/` Configuration](vibtools-config.md) for the complete `docs.config.json` / `config.docs.json` schema, [Adding Projects](adding-projects.md) for CLI and webhook steps, [Go-Live Deployment](deployment.md) for dual-portal hosting, and `project/` for architecture contracts.

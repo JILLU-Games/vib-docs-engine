@@ -40,6 +40,7 @@ const siteConfigSchema = z.object({
   brandName: z.string().trim().min(1),
   brandLogo: z.string().trim().min(1),
   defaultAccent: hexColorSchema,
+  portalType: z.enum(["users", "developer", "all"]).default("all"),
   navLinks: z.array(
     z.object({
       label: z.string().trim().min(1),
@@ -55,78 +56,6 @@ const siteConfigSchema = z.object({
     }),
   ),
 });
-
-const projectSchema = z
-  .object({
-    slug: z
-      .string()
-      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "must be a lowercase URL-safe slug"),
-    category: z.string().trim().min(1),
-    accentColor: hexColorSchema,
-    repoUrl: z.string().optional(),
-    localPath: z.string().optional(),
-    secretKey: z.string().trim().optional(),
-    gitToken: z.string().trim().optional(),
-    gitTokenEnv: z.string().trim().optional(),
-    gitUsername: z.string().trim().optional(),
-    branch: z.string().trim().min(1).default("main"),
-    docsPath: z.string().trim().min(1).default("docs"),
-    ctaLabel: z.string().trim().min(1).optional(),
-    ctaUrl: httpUrlSchema.optional(),
-    title: z.string().optional(),
-    description: z.string().optional(),
-    version: z.union([z.string(), z.number()]).optional(),
-  })
-  .superRefine((project, context) => {
-    if (!project.localPath && !project.repoUrl) {
-      context.addIssue({
-        code: "custom",
-        message: "repoUrl is required unless localPath is set",
-        path: ["repoUrl"],
-      });
-    }
-    if (project.repoUrl) {
-      const isSupportedUrl =
-        /^https:\/\//i.test(project.repoUrl) ||
-        /^ssh:\/\//i.test(project.repoUrl) ||
-        /^[^@\s]+@[^:\s]+:.+/.test(project.repoUrl);
-      if (!isSupportedUrl) {
-        context.addIssue({
-          code: "custom",
-          message: "repoUrl must use HTTPS or SSH Git transport",
-          path: ["repoUrl"],
-        });
-      }
-      if (/^https:\/\//i.test(project.repoUrl)) {
-        const parsedRepoUrl = new URL(project.repoUrl);
-        if (parsedRepoUrl.username || parsedRepoUrl.password) {
-          context.addIssue({
-            code: "custom",
-            message:
-              "repoUrl must not contain credentials; use secretKey or GIT_TOKEN instead",
-            path: ["repoUrl"],
-          });
-        }
-      }
-    }
-    for (const [field, value] of [
-      ["docsPath", project.docsPath],
-      ["localPath", project.localPath],
-    ]) {
-      if (
-        value &&
-        (path.isAbsolute(value) ||
-          value.includes("\\") ||
-          value.split("/").some((part) => part === ".."))
-      ) {
-        context.addIssue({
-          code: "custom",
-          message: `${field} must be a relative path without traversal`,
-          path: [field],
-        });
-      }
-    }
-  });
 
 function parseJsonFile(filePath) {
   return JSON.parse(requireText(filePath));
@@ -299,7 +228,15 @@ function authenticatedCloneUrl(repoUrl, token, username = "") {
   return parsed.toString();
 }
 
-function runGitSparseClone(cloneUrl, branch, docsPath, destination) {
+const nonInteractiveGitEnv = {
+  ...process.env,
+  GIT_TERMINAL_PROMPT: "0",
+  GCM_INTERACTIVE: "never",
+  GIT_ASKPASS: "",
+  SSH_ASKPASS: "",
+};
+
+function runGitSparseCloneBase(cloneUrl, branch, destination, initialPath) {
   execFileSync(
     "git",
     [
@@ -317,61 +254,132 @@ function runGitSparseClone(cloneUrl, branch, docsPath, destination) {
       cwd: projectRoot,
       stdio: "pipe",
       encoding: "utf8",
-      env: {
-        ...process.env,
-        GIT_TERMINAL_PROMPT: "0",
-        GCM_INTERACTIVE: "never",
-        GIT_ASKPASS: "",
-        SSH_ASKPASS: "",
-      },
+      env: nonInteractiveGitEnv,
     },
   );
-  execFileSync("git", ["sparse-checkout", "set", docsPath], {
+  execFileSync("git", ["sparse-checkout", "set", initialPath], {
     cwd: destination,
     stdio: "pipe",
     encoding: "utf8",
+    env: nonInteractiveGitEnv,
   });
 }
 
-async function cloneAndCheckout(project, destination, token) {
+function addGitSparsePaths(destination, paths) {
+  const uniquePaths = [...new Set(paths.filter((p) => p && p !== "."))];
+  if (uniquePaths.length === 0) return;
+  execFileSync("git", ["sparse-checkout", "add", ...uniquePaths], {
+    cwd: destination,
+    stdio: "pipe",
+    encoding: "utf8",
+    env: nonInteractiveGitEnv,
+  });
+}
+
+function switchGitSparseBranch(destination, targetBranch, secrets = []) {
+  try {
+    execFileSync("git", ["fetch", "--depth", "1", "origin", targetBranch], {
+      cwd: destination,
+      stdio: "pipe",
+      encoding: "utf8",
+      env: nonInteractiveGitEnv,
+    });
+    execFileSync("git", ["checkout", "-B", targetBranch, "FETCH_HEAD"], {
+      cwd: destination,
+      stdio: "pipe",
+      encoding: "utf8",
+      env: nonInteractiveGitEnv,
+    });
+  } catch (error) {
+    throw new Error(
+      `Failed to switch sparse checkout to branch "${targetBranch}": ${sanitizeError(error, secrets)}`,
+    );
+  }
+}
+
+async function cloneMetadataFirst(entry, destination, token, initialSparsePath) {
+  const branch = entry.branch || "main";
   const { explicitToken, fallbackToken, username } = resolveProjectAuth(
-    project,
+    entry,
     token,
   );
   if (explicitToken) {
     const cloneUrl = authenticatedCloneUrl(
-      project.repoUrl,
+      entry.repoUrl,
       explicitToken,
       username,
     );
-    runGitSparseClone(cloneUrl, project.branch, project.docsPath, destination);
+    runGitSparseCloneBase(cloneUrl, branch, destination, initialSparsePath);
     return;
   }
 
   try {
-    runGitSparseClone(
-      project.repoUrl,
-      project.branch,
-      project.docsPath,
-      destination,
-    );
+    runGitSparseCloneBase(entry.repoUrl, branch, destination, initialSparsePath);
   } catch (publicCloneError) {
-    if (!fallbackToken || !project.repoUrl.toLowerCase().startsWith("https://")) {
+    if (!fallbackToken || !entry.repoUrl.toLowerCase().startsWith("https://")) {
       throw publicCloneError;
     }
     await fs.rm(destination, { recursive: true, force: true });
     const fallbackUrl = authenticatedCloneUrl(
-      project.repoUrl,
+      entry.repoUrl,
       fallbackToken,
       username,
     );
-    runGitSparseClone(
-      fallbackUrl,
-      project.branch,
-      project.docsPath,
-      destination,
+    runGitSparseCloneBase(fallbackUrl, branch, destination, initialSparsePath);
+  }
+}
+
+async function readVibtoolsConfigFromRoot(repoRoot, helpers) {
+  const vibtoolsDir = path.join(repoRoot, helpers.VIBTOOLS_DIR);
+  const dirStat = await fs.lstat(vibtoolsDir).catch((error) => {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  });
+  if (!dirStat) return null;
+  if (dirStat.isSymbolicLink()) {
+    throw new Error("Symbolic links are not allowed for .vibtools directory");
+  }
+  if (!dirStat.isDirectory()) {
+    throw new Error(".vibtools must be a directory");
+  }
+
+  const foundFiles = [];
+  for (const filename of helpers.VIBTOOLS_CONFIG_FILENAMES) {
+    const candidatePath = path.join(vibtoolsDir, filename);
+    const fileStat = await fs.lstat(candidatePath).catch((error) => {
+      if (error?.code === "ENOENT") return null;
+      throw error;
+    });
+    if (!fileStat) continue;
+    if (fileStat.isSymbolicLink()) {
+      throw new Error(`Symbolic links are not allowed for .vibtools/${filename}`);
+    }
+    if (!fileStat.isFile()) {
+      throw new Error(`.vibtools/${filename} must be a regular file`);
+    }
+    foundFiles.push({ filename, candidatePath });
+  }
+
+  if (foundFiles.length > 1) {
+    throw new Error(
+      `Conflicting .vibtools config files (${foundFiles.map((f) => f.filename).join(" and ")}); keep only one canonical file`,
     );
   }
+  if (foundFiles.length === 0) return null;
+
+  const { filename, candidatePath } = foundFiles[0];
+  let parsedJson;
+  try {
+    parsedJson = JSON.parse(await fs.readFile(candidatePath, "utf8"));
+  } catch (error) {
+    throw new Error(`Malformed JSON in .vibtools/${filename}: ${error.message}`);
+  }
+
+  const validated = helpers.parseVibtoolsRepoConfig(parsedJson);
+  if (!validated.success) {
+    throw new Error(`Invalid .vibtools/${filename}: ${validated.error}`);
+  }
+  return validated.data;
 }
 
 function formatSlug(slug) {
@@ -400,49 +408,91 @@ function titleFromMarkdown(markdown) {
   return heading?.replace(/\s+#+$/, "").trim() || "";
 }
 
-async function findLogo(sourceDirectory, project) {
+async function tryCopyValidatedLogo(candidatePath, projectSlug) {
+  const extension = path.extname(candidatePath).toLowerCase();
+  if (extension !== ".png" && extension !== ".svg") {
+    return null;
+  }
+  try {
+    const stat = await fs.lstat(candidatePath);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 2 * 1024 * 1024) {
+      return null;
+    }
+    const buffer = await fs.readFile(candidatePath);
+    if (extension === ".png") {
+      const signature = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      ]);
+      if (!buffer.subarray(0, 8).equals(signature)) return null;
+    } else {
+      const svg = buffer.toString("utf8");
+      if (
+        !/<svg\b/i.test(svg) ||
+        /<script\b|\bon[a-z]+\s*=|(?:href|src)\s*=\s*["']\s*(?:https?:|\/\/|javascript:)/i.test(
+          svg,
+        )
+      ) {
+        return null;
+      }
+    }
+    const target = path.join(logosOutput, `${projectSlug}${extension}`);
+    await fs.copyFile(candidatePath, target);
+    return `/logos/${projectSlug}${extension}`;
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    return null;
+  }
+}
+
+async function findLogo(sourceDirectory, project, repoRootDirectory = null) {
+  const names = ["logo.svg", "logo.png", "icon.svg", "icon.png"];
+
+  if (project.logoPath && repoRootDirectory) {
+    const configuredLogoPath = path.resolve(repoRootDirectory, project.logoPath);
+    assertWithin(repoRootDirectory, configuredLogoPath, "logoPath");
+    const copiedConfigured = await tryCopyValidatedLogo(
+      configuredLogoPath,
+      project.slug,
+    );
+    if (copiedConfigured) return copiedConfigured;
+    console.warn(
+      `Warning [${project.slug}]: configured logoPath "${project.logoPath}" is missing or invalid; falling back to standard logo discovery.`,
+    );
+  }
+
+  if (repoRootDirectory) {
+    const vibtoolsDir = path.join(repoRootDirectory, ".vibtools");
+    const vibtoolsStat = await fs.lstat(vibtoolsDir).catch(() => null);
+    if (vibtoolsStat?.isDirectory() && !vibtoolsStat.isSymbolicLink()) {
+      for (const name of names) {
+        const copied = await tryCopyValidatedLogo(
+          path.join(vibtoolsDir, name),
+          project.slug,
+        );
+        if (copied) return copied;
+      }
+    }
+  }
+
   const directories = [
     sourceDirectory,
     path.join(sourceDirectory, "assets"),
     path.join(sourceDirectory, "images"),
   ];
-  const names = ["logo.svg", "logo.png", "icon.svg", "icon.png"];
   for (const directory of directories) {
     for (const name of names) {
-      const candidate = path.join(directory, name);
-      try {
-        const stat = await fs.lstat(candidate);
-        if (!stat.isFile() || stat.size > 2 * 1024 * 1024) continue;
-        const buffer = await fs.readFile(candidate);
-        const extension = path.extname(name).toLowerCase();
-        if (extension === ".png") {
-          const signature = Buffer.from([
-            0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-          ]);
-          if (!buffer.subarray(0, 8).equals(signature)) continue;
-        } else {
-          const svg = buffer.toString("utf8");
-          if (
-            !/<svg\b/i.test(svg) ||
-            /<script\b|\bon[a-z]+\s*=|(?:href|src)\s*=\s*["']\s*(?:https?:|\/\/|javascript:)/i.test(
-              svg,
-            )
-          )
-            continue;
-        }
-        const target = path.join(logosOutput, `${project.slug}${extension}`);
-        await fs.copyFile(candidate, target);
-        return `/logos/${project.slug}${extension}`;
-      } catch (error) {
-        if (error?.code !== "ENOENT") throw error;
-      }
+      const copied = await tryCopyValidatedLogo(
+        path.join(directory, name),
+        project.slug,
+      );
+      if (copied) return copied;
     }
   }
   return null;
 }
 
-async function loadSidebarBuilder() {
-  const sourcePath = path.join(projectRoot, "src", "utils", "sidebar.ts");
+async function loadTypeScriptModule(relativePath) {
+  const sourcePath = path.join(projectRoot, relativePath);
   const source = await fs.readFile(sourcePath, "utf8");
   const javascript = ts.transpileModule(source, {
     compilerOptions: {
@@ -451,46 +501,180 @@ async function loadSidebarBuilder() {
     },
   }).outputText;
   const moduleUrl = `data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`;
-  return (await import(moduleUrl)).buildSidebar;
+  return import(moduleUrl);
 }
 
-async function syncProject(project, buildSidebar, token) {
-  const contentDirectory = path.join(docsOutput, project.slug);
+async function loadSidebarBuilder() {
+  return (await loadTypeScriptModule(path.join("src", "utils", "sidebar.ts")))
+    .buildSidebar;
+}
+
+async function loadVibtoolsConfigHelpers() {
+  return loadTypeScriptModule(path.join("src", "utils", "vibtoolsConfig.ts"));
+}
+
+async function syncProject(
+  registryEntry,
+  siteConfig,
+  buildSidebar,
+  vibtoolsHelpers,
+  token,
+  reservedSlugs,
+) {
+  let contentDirectory;
   let temporaryDirectory;
+  let projectSlugForCleanup;
   try {
     let sourceDirectory;
-    const selfDocsCandidate = path.resolve(projectRoot, project.docsPath);
-    const defaultLocalDocsCandidate = path.resolve(projectRoot, "docs");
-    if (project.localPath) {
-      sourceDirectory = path.resolve(projectRoot, project.localPath);
-      assertWithin(projectRoot, sourceDirectory, "localPath");
-    } else if (project.slug === "vib-docs-engine") {
-      assertWithin(projectRoot, selfDocsCandidate, "docsPath");
-      const stat = await fs.lstat(selfDocsCandidate).catch(() => null);
-      if (stat?.isDirectory()) {
-        sourceDirectory = selfDocsCandidate;
+    let repoRootForMetadata = null;
+    let remoteConfig = null;
+    let clonedBranch = null;
+
+    const candidateDerivedSlug =
+      registryEntry.slug ||
+      vibtoolsHelpers.deriveSlugFromSource(
+        registryEntry.repoUrl,
+        registryEntry.localPath,
+      );
+
+    if (registryEntry.localPath) {
+      const resolvedLocal = path.resolve(projectRoot, registryEntry.localPath);
+      assertWithin(projectRoot, resolvedLocal, "localPath");
+      const localVibtools = await readVibtoolsConfigFromRoot(
+        resolvedLocal,
+        vibtoolsHelpers,
+      );
+      if (localVibtools) {
+        remoteConfig = localVibtools;
+        repoRootForMetadata = resolvedLocal;
+      } else {
+        sourceDirectory = resolvedLocal;
+        repoRootForMetadata =
+          registryEntry.localPath === "." ? projectRoot : null;
+      }
+    } else if (candidateDerivedSlug === "vib-docs-engine") {
+      const selfVibtools = await readVibtoolsConfigFromRoot(
+        projectRoot,
+        vibtoolsHelpers,
+      );
+      if (selfVibtools) {
+        remoteConfig = selfVibtools;
+        repoRootForMetadata = projectRoot;
+      } else {
+        const selfDocsCandidate = path.resolve(
+          projectRoot,
+          registryEntry.docsPath || "docs",
+        );
+        assertWithin(projectRoot, selfDocsCandidate, "docsPath");
+        const stat = await fs.lstat(selfDocsCandidate).catch(() => null);
+        if (stat?.isDirectory()) {
+          sourceDirectory = selfDocsCandidate;
+          repoRootForMetadata = projectRoot;
+        }
       }
     } else if (
-      typeof project.repoUrl === "string" &&
-      project.repoUrl.includes("YOUR_ORG")
+      typeof registryEntry.repoUrl === "string" &&
+      registryEntry.repoUrl.includes("YOUR_ORG")
     ) {
+      const isStrictCi =
+        process.env.CF_PAGES === "1" ||
+        process.env.CF_PAGES === "true" ||
+        process.env.STRICT_SYNC === "1" ||
+        process.env.STRICT_SYNC === "true" ||
+        process.argv.includes("--strict");
+      if (isStrictCi) {
+        throw new Error(
+          `Starter placeholder repoUrl "${registryEntry.repoUrl}" is not allowed in production/CI builds (CF_PAGES / STRICT_SYNC). Replace YOUR_ORG in config/projects.json with a real repository URL.`,
+        );
+      }
+      const defaultLocalDocsCandidate = path.resolve(projectRoot, "docs");
       assertWithin(projectRoot, defaultLocalDocsCandidate, "docs");
       const stat = await fs.lstat(defaultLocalDocsCandidate).catch(() => null);
       if (stat?.isDirectory()) {
         console.warn(
-          `Warning [${project.slug}]: repoUrl uses starter placeholder (${project.repoUrl}); using local ./docs fixture for smoke build.`,
+          `Warning [${candidateDerivedSlug || registryEntry.repoUrl}]: repoUrl uses starter placeholder (${registryEntry.repoUrl}); using local ./docs fixture for smoke build.`,
         );
         sourceDirectory = defaultLocalDocsCandidate;
       }
     }
 
-    if (!sourceDirectory) {
+    if (!sourceDirectory && !remoteConfig) {
       temporaryDirectory = await fs.mkdtemp(
         path.join(os.tmpdir(), "vib-docs-sync-"),
       );
       const checkoutDirectory = path.join(temporaryDirectory, "checkout");
-      await cloneAndCheckout(project, checkoutDirectory, token);
-      sourceDirectory = path.join(checkoutDirectory, project.docsPath);
+      clonedBranch = registryEntry.branch || "main";
+      await cloneMetadataFirst(
+        registryEntry,
+        checkoutDirectory,
+        token,
+        vibtoolsHelpers.VIBTOOLS_DIR,
+      );
+      remoteConfig = await readVibtoolsConfigFromRoot(
+        checkoutDirectory,
+        vibtoolsHelpers,
+      );
+      repoRootForMetadata = checkoutDirectory;
+    }
+
+    const resolution = vibtoolsHelpers.resolvePortalProjectConfig({
+      portalType: siteConfig.portalType || "all",
+      registryEntry,
+      remoteConfig,
+      defaultAccent: siteConfig.defaultAccent,
+    });
+
+    if (!resolution.matched) {
+      return {
+        status: "skipped",
+        reason: resolution.reason,
+        label:
+          registryEntry.slug ||
+          candidateDerivedSlug ||
+          registryEntry.repoUrl ||
+          registryEntry.localPath ||
+          "unknown",
+      };
+    }
+
+    const project = resolution.project;
+    if (reservedSlugs.has(project.slug)) {
+      throw new Error(
+        `Duplicate resolved slug "${project.slug}" (conflict across repositories or overrides)`,
+      );
+    }
+    reservedSlugs.add(project.slug);
+    projectSlugForCleanup = project.slug;
+    contentDirectory = path.join(docsOutput, project.slug);
+
+    if (!sourceDirectory && repoRootForMetadata) {
+      const targetDocsDirectory = path.resolve(
+        repoRootForMetadata,
+        project.docsPath,
+      );
+      assertWithin(repoRootForMetadata, targetDocsDirectory, "docsPath");
+
+      if (temporaryDirectory) {
+        if (clonedBranch && project.branch !== clonedBranch) {
+          switchGitSparseBranch(repoRootForMetadata, project.branch, [
+            token,
+            registryEntry.secretKey,
+            registryEntry.gitToken,
+            resolveSecretValue(registryEntry.secretKey),
+            resolveSecretValue(registryEntry.gitToken),
+          ]);
+        }
+        const extraPaths = [project.docsPath];
+        if (project.logoPath) {
+          const logoDir = path.posix.dirname(project.logoPath);
+          if (logoDir && logoDir !== ".") {
+            extraPaths.push(logoDir);
+          }
+        }
+        addGitSparsePaths(repoRootForMetadata, extraPaths);
+      }
+
+      sourceDirectory = targetDocsDirectory;
     }
 
     await copyTree(sourceDirectory, contentDirectory);
@@ -500,19 +684,28 @@ async function syncProject(project, buildSidebar, token) {
     const indexSource = await fs.readFile(indexPath, "utf8");
     const parsedIndex = matter(indexSource);
     const frontmatter = parsedIndex.data;
+    const extracted = vibtoolsHelpers.extractMarkdownMetadata(indexSource);
     const title =
       metadataString(frontmatter.title, "title", project) ||
       project.title ||
+      extracted.title ||
       titleFromMarkdown(parsedIndex.content) ||
       formatSlug(project.slug);
     const description =
       metadataString(frontmatter.description, "description", project) ||
       project.description ||
+      extracted.description ||
       "";
     const version =
       metadataString(frontmatter.version, "version", project) ||
-      (project.version === undefined ? "" : String(project.version));
-    const logoUrl = await findLogo(contentDirectory, project);
+      (project.version === undefined ? "" : String(project.version)) ||
+      extracted.version ||
+      "";
+    const logoUrl = await findLogo(
+      contentDirectory,
+      project,
+      repoRootForMetadata,
+    );
     const navigation = await buildSidebar({
       docsRoot: contentDirectory,
       projectSlug: project.slug,
@@ -528,22 +721,35 @@ async function syncProject(project, buildSidebar, token) {
       gitToken,
       gitTokenEnv,
       gitUsername,
+      logoPath,
+      docsType,
       ...manifestProject
     } = project;
 
     return {
-      ...manifestProject,
-      title,
-      description,
-      version,
-      logoUrl,
-      sidebar: navigation.sidebar,
-      flatPages: navigation.flatPages,
+      status: "synced",
+      project: {
+        ...manifestProject,
+        title,
+        description,
+        version,
+        logoUrl,
+        sidebar: navigation.sidebar,
+        flatPages: navigation.flatPages,
+      },
     };
   } catch (error) {
-    await fs.rm(contentDirectory, { recursive: true, force: true });
-    await fs.rm(path.join(logosOutput, `${project.slug}.svg`), { force: true });
-    await fs.rm(path.join(logosOutput, `${project.slug}.png`), { force: true });
+    if (contentDirectory) {
+      await fs.rm(contentDirectory, { recursive: true, force: true });
+    }
+    if (projectSlugForCleanup) {
+      await fs.rm(path.join(logosOutput, `${projectSlugForCleanup}.svg`), {
+        force: true,
+      });
+      await fs.rm(path.join(logosOutput, `${projectSlugForCleanup}.png`), {
+        force: true,
+      });
+    }
     throw error;
   } finally {
     if (temporaryDirectory)
@@ -573,46 +779,77 @@ async function main() {
   const rawProjects = parseJsonFile(projectsConfigPath);
   if (!Array.isArray(rawProjects))
     throw new Error("config/projects.json must contain a JSON array");
-  const projects = rawProjects.map((project, index) => {
-    const result = projectSchema.safeParse(project);
-    if (!result.success) {
+
+  const [buildSidebar, vibtoolsHelpers] = await Promise.all([
+    loadSidebarBuilder(),
+    loadVibtoolsConfigHelpers(),
+  ]);
+
+  const registryEntries = rawProjects.map((entry, index) => {
+    const normalized = vibtoolsHelpers.normalizeRegistryEntry(entry);
+    if (!normalized.success) {
       throw new Error(
-        `Invalid project at config/projects.json[${index}]: ${result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ")}`,
+        `Invalid project at config/projects.json[${index}]: ${normalized.error}`,
       );
     }
-    return result.data;
+    return normalized.data;
   });
-  const slugs = new Set();
-  for (const project of projects) {
-    if (slugs.has(project.slug))
-      throw new Error(`Duplicate project slug: ${project.slug}`);
-    slugs.add(project.slug);
+
+  const explicitSlugs = new Set();
+  for (const entry of registryEntries) {
+    if (entry.slug) {
+      if (explicitSlugs.has(entry.slug))
+        throw new Error(`Duplicate project slug: ${entry.slug}`);
+      explicitSlugs.add(entry.slug);
+    }
   }
 
-  const buildSidebar = await loadSidebarBuilder();
   const syncedProjects = [];
+  const reservedSlugs = new Set();
+  let failedCount = 0;
+  let skippedCount = 0;
   const token = process.env.GIT_TOKEN;
-  for (const project of projects) {
+
+  for (const entry of registryEntries) {
     try {
-      syncedProjects.push(await syncProject(project, buildSidebar, token));
-      console.log(`Synced ${project.slug}`);
+      const outcome = await syncProject(
+        entry,
+        siteConfig,
+        buildSidebar,
+        vibtoolsHelpers,
+        token,
+        reservedSlugs,
+      );
+      if (outcome.status === "skipped") {
+        skippedCount += 1;
+        console.log(`Skipped ${outcome.label} (${outcome.reason})`);
+      } else {
+        syncedProjects.push(outcome.project);
+        console.log(`Synced ${outcome.project.slug}`);
+      }
     } catch (error) {
+      failedCount += 1;
       const secretsToRedact = [
         token,
-        project.secretKey,
-        project.gitToken,
-        resolveSecretValue(project.secretKey),
-        resolveSecretValue(project.gitToken),
+        entry.secretKey,
+        entry.gitToken,
+        resolveSecretValue(entry.secretKey),
+        resolveSecretValue(entry.gitToken),
       ];
       console.warn(
-        `Warning: could not sync ${project.slug}: ${sanitizeError(error, secretsToRedact)}`,
+        `Warning: could not sync ${entry.slug || entry.repoUrl || entry.localPath}: ${sanitizeError(error, secretsToRedact)}`,
       );
     }
   }
-  if (projects.length > 0 && syncedProjects.length === 0)
+  if (registryEntries.length > 0 && syncedProjects.length === 0 && failedCount > 0)
     throw new Error(
       "No projects synced successfully; refusing to write an empty manifest",
     );
+  if (registryEntries.length > 0 && syncedProjects.length === 0 && skippedCount === registryEntries.length) {
+    console.warn(
+      `Warning: all ${skippedCount} configured project(s) were filtered out for portalType "${siteConfig.portalType}".`,
+    );
+  }
 
   const categories = [
     ...new Set(syncedProjects.map((project) => project.category)),

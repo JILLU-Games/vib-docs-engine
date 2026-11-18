@@ -14,6 +14,7 @@
 | `Dockerfile`, `nginx.conf`, `.dockerignore` | VPS/Coolify static deployment assets                                    |
 | `.gitignore`                                | Generated/dependency exclusions                                         |
 | `.github/`                                  | Issue forms, pull-request template, and GitHub submission guidance      |
+| `.vibtools/`                                | Self-hosted `vib-docs-engine` `.vibtools/docs.config.json` & `logo.png` configuration |
 | `config/`                                   | Active portal config and dual-portal presets                            |
 | `docs/`                                     | Operator and portal-user documentation                                  |
 | `notes/`                                    | Development-only plans and working logs; not exported                   |

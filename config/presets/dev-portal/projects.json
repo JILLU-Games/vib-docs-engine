@@ -1,23 +1,10 @@
 [
+  "https://github.com/JILLU-Games/vib-docs-engine.git",
   {
-    "slug": "vib-docs-engine",
-    "category": "SDKs & Engines",
-    "accentColor": "#2563EB",
-    "repoUrl": "https://github.com/JILLU-Games/vib-docs-engine.git",
-    "branch": "main",
-    "docsPath": "docs",
-    "ctaLabel": "View repository",
-    "ctaUrl": "https://github.com/JILLU-Games/vib-docs-engine",
-    "title": "Vib Docs Engine",
-    "description": "A static multi-product documentation engine."
-  },
-  {
-    "slug": "vib-self-hosted",
+    "repoUrl": "https://github.com/YOUR_ORG/vib-self-hosted.git",
+    "docsType": "developer",
     "category": "Self-Hosted Infrastructure",
     "accentColor": "#14B8A6",
-    "repoUrl": "https://github.com/YOUR_ORG/vib-self-hosted.git",
-    "branch": "main",
-    "docsPath": "docs",
     "ctaLabel": "View repository",
     "ctaUrl": "https://github.com/YOUR_ORG/vib-self-hosted",
     "title": "Vib Self-Hosted",

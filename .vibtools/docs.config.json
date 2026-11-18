@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "docsType": "developer",
+  "slug": "vib-docs-engine",
+  "title": "Vib Docs Engine",
+  "category": "Core Engine",
+  "description": "A static multi-product documentation engine.",
+  "version": "0.1.0",
+  "accentColor": "#7C3AED",
+  "docsPath": "docs",
+  "logoPath": ".vibtools/logo.png",
+  "branch": "main",
+  "ctaLabel": "View repository",
+  "ctaUrl": "https://github.com/JILLU-Games/vib-docs-engine"
+}

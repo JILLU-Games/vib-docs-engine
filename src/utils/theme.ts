@@ -35,3 +35,11 @@ export function getMonogram(title: string): string {
 
   return word.match(/[\p{L}\p{N}]/u)?.[0]?.toLocaleUpperCase() ?? "?";
 }
+
+export function formatVersionBadge(version?: string | number | null): string {
+  if (version === undefined || version === null) return "";
+  const trimmed = String(version).trim();
+  if (!trimmed) return "";
+  const normalized = trimmed.replace(/^v+/i, "").trim();
+  return normalized ? `v${normalized}` : "";
+}

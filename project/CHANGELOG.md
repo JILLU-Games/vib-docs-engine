@@ -155,7 +155,71 @@ Record dates, files/areas, behavior changed, and verification result whenever co
 - Added `<link rel="shortcut icon" href="/favicon.ico">` and `<link rel="icon" type="image/png" href="/web-app-manifest-192x192.png" sizes="192x192">` to `src/layouts/BaseLayout.astro`, updated `public/site.webmanifest` to include explicit `"any"` and `"maskable"` icon purposes, and extended `scripts/verify-build.mjs` to check all `link[rel*="icon"]` targets in `dist/`.
 - Verified `npx --yes tsx --test src/utils/seo.test.ts src/utils/search.test.ts` (`8/8`), `npm run verify` (`6` HTML files, `15` required assets, `0` broken links), `compile_applet`, `lint_applet`, and headless Chromium dark/light captures confirming `180x180` logos in Header, Footer, `ProjectCard`, and `Topbar`.
 
+## 2026-11-18 — `VT-Phase 01`: `.vibtools/` Pure Schema, Dual-Portal Resolver, Smart Markdown Extractor & `portalType`
 
+- Created zero-dependency `src/utils/vibtoolsConfig.ts` (`parseVibtoolsRepoConfig`, `normalizeRegistryEntry`, `resolvePortalProjectConfig`, `extractMarkdownMetadata`, `deriveSlugFromSource`, `normalizeRelativeRepoPath`) and `src/utils/vibtoolsConfig.test.ts` supporting `docs.config.json` / `config.docs.json`, `users`/`developer`/`both` targeting, `..`/absolute path containment guards, bare `repoUrl` registry strings, override precedence, and frontmatter-free Markdown title/description/version extraction.
+- Added `portalType?: "users" | "developer" | "all"` to `SiteConfig` (`src/utils/manifest.ts`), `config/site.config.json` (`"all"`), `config/presets/user-portal/site.config.json` (`"users"`), and `config/presets/dev-portal/site.config.json` (`"developer"`).
+- Verified `npx --yes tsx --test src/utils/vibtoolsConfig.test.ts src/utils/seo.test.ts src/utils/search.test.ts` (`14/14` pass), `compile_applet`, `lint_applet` (`tsc --noEmit`), and `node scripts/verify-build.mjs`.
 
+## 2026-11-18 — `VT-Phase 02`: Two-Step `.vibtools/` Sparse Checkout, `portalType` Filtering & Logo Discovery
 
+- Updated `scripts/sync-docs.mjs` to normalize bare `repoUrl` strings and partial overrides, perform 2-step Git sparse checkout (`cloneMetadataFirst` for `.vibtools/` -> `readVibtoolsConfigFromRoot` supporting `docs.config.json` / `config.docs.json` with conflict guard -> `resolvePortalProjectConfig` `portalType` filtering -> `addGitSparsePaths` for target `docsPath` and `logoPath`), guard against duplicate resolved slugs (`reservedSlugs`), validate `.vibtools/` and custom `logoPath` logos (`tryCopyValidatedLogo`), and fall back to `extractMarkdownMetadata` when frontmatter/config lack metadata.
+- Verified `npm run sync`, `node scripts/verify-build.mjs`, `npx --yes tsx --test` (`14/14` pass), isolated 2-step Git sparse-checkout smoke test (`src/` & non-matching targets never checked out), `compile_applet`, and `lint_applet`.
 
+## 2026-11-18 — `VT-Phase 03`: Minimal `repoUrl`-Only CLI Flow, Verifier Guardrails, Presets & Engine `.vibtools/`
+
+- Added `.vibtools/docs.config.json` and `.vibtools/logo.png` in the `vib-docs-engine` root (`docsType: "developer"`, `slug: "vib-docs-engine"`, `docsPath: "docs"`, `logoPath: ".vibtools/logo.png"`, `version: "0.1.0"`).
+- Upgraded `scripts/add-project.mjs` with `--url <repoUrl>` fast `.vibtools/` onboarding, interactive `[1] .vibtools/ Auto` vs `[2] Manual` modes, and `VT-EH-08` duplicate `repoUrl` (unless distinct `--slug` override is provided) and duplicate slug guards.
+- Upgraded `scripts/verify-build.mjs` (`validateVibtoolsAndRegistry`) to validate root `.vibtools/` syntax/schema/paths/logos (including `docs.config.json` + `config.docs.json` conflict guard), `config/site.config.json` `portalType`, and `config/projects.json` duplicate/schema integrity.
+- Updated `config/presets/user-portal/projects.json` and `config/presets/dev-portal/projects.json` to showcase compact `.vibtools/` `repoUrl`-only entries alongside optional overrides.
+- Verified `npm run sync`, `export-portal` + `npm run sync` across `user` (`2/2`) and `dev` (`2/2`) portals, `--url` CLI + duplicate/credential guards + interactive Auto mode, `npx --yes tsx --test` (`14/14` pass), `node scripts/verify-build.mjs`, `compile_applet`, and `lint_applet`.
+
+## 2026-11-18 — `VT-Phase 04`: `.vibtools/` & `config.docs.json` Schema Documentation + Governance Sync
+
+- Added `docs/vibtools-config.md` covering `.vibtools/docs.config.json` and `config.docs.json`, conflict rules, two-step sparse-checkout behavior, complete field reference, `portalType` filtering, Smart Markdown fallback precedence, logo security validation, single/dual-portal templates, minimal `projects.json` examples, and Draft 2020-12 JSON Schema.
+- Updated `docs/adding-projects.md`, `docs/index.md`, and `docs/deployment.md` to elevate `.vibtools/` + bare `repoUrl` / `add-project --url` onboarding and document `portalType` split deployment.
+- Synchronized `docs/MANIFEST.md`, root `MANIFEST.md`, `src/utils/MANIFEST.md`, `project/04-codebase-reference.md`, and `.vibtools/` phase trackers (`notes/016`, `notes/018`, `notes/020`).
+- Verified `compile_applet`, `lint_applet`, `npx --yes tsx --test src/utils/*.test.ts` (`14/14` pass), `node scripts/verify-build.mjs` (`7` HTML files, `15` required assets, `0` broken links), `/vib-docs-engine/vibtools-config.md`, and live headless Chromium dark/light renders (`0` console errors/warnings).
+
+## 2026-11-18 — `REL-Phase 01`: Dual-Target `all` Resolver, Version Badge Guard, `npm test` & MDX Config Cleanup
+
+- Updated `selectActiveTarget` in `src/utils/vibtoolsConfig.ts` so `portalType: "all"` portals respect explicit `registryEntry.docsType` (`"developer"` vs `"users"`) when a `.vibtools` repository defines both `targets.users` and `targets.developer` (`AUDIT-F02`, `REL-EH-01`).
+- Added `formatVersionBadge` in `src/utils/theme.ts` and wired it into `src/components/hub/ProjectCard.astro` and `src/components/docs/Topbar.astro` to strip extra leading `v`/`V` characters and prevent `"vv"` version badges (`AUDIT-F06`, `REL-EH-03`).
+- Added `"test": "npx --yes tsx --test src/utils/*.test.ts"` to `package.json` (`AUDIT-F03`), removed the deprecated duplicate `remarkPlugins` option from `mdx()` in `astro.config.mjs` (`AUDIT-F10.1`), and expanded `src/utils/vibtoolsConfig.test.ts` with `portalType: "all"` and `formatVersionBadge` tests.
+- Verified `npm test` (`16/16` pass), `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, `npm run verify` (`7` HTML files, `15` assets, `5` Pagefind pages, `0` broken links, zero MDX deprecation warning), `compile_applet`, `lint_applet`, and headless Chromium captures (`v0.1.0` badges, `0` console errors).
+
+## 2026-11-18 — `REL-Phase 02`: Sparse Branch Switch, Portal Exporter Hygiene & Webhook Fail-Closed Guard
+
+- Added `switchGitSparseBranch` in `scripts/sync-docs.mjs` so repositories whose `.vibtools/docs.config.json` resolves a different `branch` than `entry.branch` fetch and switch to that branch in sparse checkout prior to materializing `docsPath` and `logoPath` (`AUDIT-F04`, `REL-EH-02`). Removed `repoRootForMetadata = projectRoot` from `YOUR_ORG` starter fixture fallbacks.
+- Updated `scripts/export-portal.mjs` to exclude the engine's root `.vibtools/` folder during `--portal user` exports and detect both bare string and `.repoUrl` object `YOUR_ORG` placeholders in the reminder notice (`AUDIT-F08`, `REL-EH-04`).
+- Hardened `functions/api/webhook.ts` (`WebhookEnv`, `onRequestPost`) to fail closed with HTTP `501` when `WEBHOOK_SECRET` is unset unless `ALLOW_UNAUTHENTICATED_WEBHOOK="true"` is explicitly set (`AUDIT-F09`, `REL-EH-05`).
+- Verified `npm test` (`16/16` pass), `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, multi-branch bare-Git sparse checkout (`main` -> `docs-v2`), `webhook.ts` handler checks (`501`/`401`/`202`), `export-portal --portal user|dev` syncs, `npm run verify` (`7` HTML files, `15` required assets, `5` Pagefind pages, `0` broken links), `compile_applet`, and `lint_applet`.
+
+## 2026-11-18 — `REL-Phase 03`: Docker Git Binary, Nginx Cache/Security Alignment, Workflow Trigger & Governance Sync
+
+- Updated `Dockerfile` builder stage to install `git` and `openssh-client` via `apk add --no-cache git openssh-client` so remote HTTPS/SSH sparse checkouts succeed in Alpine Docker builds (`AUDIT-F01`, `REL-EH-06`).
+- Updated `nginx.conf` to mirror `public/_headers` (`AUDIT-F05`, `REL-EH-06`): switched `/pagefind/` from `immutable` (`1y`) to `public, max-age=3600, must-revalidate`, added `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, and `Referrer-Policy: strict-origin-when-cross-origin` across `server` and location blocks, removed duplicate `Cache-Control` emission from paired `expires` directives, and enabled `charset_types text/markdown text/plain` so `.md` exports serve `text/markdown; charset=utf-8`.
+- Added `".vibtools/**"` to `on.push.paths` in `templates/github-notify-docs.yml` (`AUDIT-F07`).
+- Synchronized `docs/deployment.md`, `docs/adding-projects.md`, `docs/vibtools-config.md`, `project/04-codebase-reference.md`, and `notes/024`–`026`.
+- Verified `npm test` (`16/16` pass), `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, `npm run verify` (`7` HTML files, `15` assets, `5` Pagefind pages, `0` broken links), live `nginx` syntax & HTTP header suite (`NGINX_SYNTAX: PASS`, `NGINX_LIVE_HEADERS: PASS`), live Chromium render (`Errors: 0, Warnings: 0`), `compile_applet`, and `lint_applet`.
+
+## 2026-11-18 — `CF2-Phase 01`: Cloudflare Pages Functions Runtime Hardening (`CF2-F01` – `CF2-F04`)
+
+- Exported `onRequestHead` in `functions/api/health.ts` (`200`, `Cache-Control: no-store`) and updated `onRequest` `Allow: GET, HEAD` so uptime monitors sending `HEAD /api/health` succeed instead of receiving `405`.
+- Hardened `functions/api/webhook.ts`: added `isAllowedDeployHookUrl` (`https:` or loopback test URLs), `isPingWebhookEvent` skipping GitHub/Gitea/Forgejo `ping` events after authentication with HTTP `200`, `application/x-www-form-urlencoded` `payload=` unwrapping in `parseBranchFromPayload` so `ALLOWED_BRANCHES` enforces branch filtering on form-encoded webhooks, a 10-second `AbortController` timeout, and `hookResponse.body?.cancel()` stream cleanup.
+- Verified `npx tsc -p functions/tsconfig.json --noEmit`, `npm test` (`16/16` pass), `npm run lint`, `CF2_PHASE01_FUNCTIONS_PROOF: PASS`, `compile_applet`, and `lint_applet`.
+
+## 2026-11-18 — `CF2-Phase 02`: Cloudflare Build Determinism, Wrangler Naming, Exporter & `_headers` Parity (`CF2-F06` – `CF2-F08`)
+
+- Added `scripts/run-astro.mjs` to invoke Astro natively on Node `>=22.23.4` (including Cloudflare Pages `22.24.0`) while limiting the `process.versions.webcontainer` floor shim to Node `22.22.0`–`22.23.3` containers; updated `package.json` scripts and set `engines.node` to `">=22.23.4"`.
+- Updated `wrangler.toml` comments to accurately document required fail-closed `WEBHOOK_SECRET` and `ALLOW_UNAUTHENTICATED_WEBHOOK` opt-out.
+- Updated `scripts/export-portal.mjs` to omit `bun.lock`/`bun.lockb` on npm-based exports, set portal-specific `wrangler.toml` names (`docs-vib-tools` vs `developer-vibtools-io`), and update `public/site.webmanifest` metadata (`name`, `short_name`, `theme_color`) from the selected preset.
+- Updated `public/_headers` with `/*.md` depth coverage and explicit `/site.webmanifest` `Content-Type: application/manifest+json; charset=utf-8`.
+- Verified `npm test` (`16/16`), `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, `npm run verify` (`7` HTML files, `15` assets, `5` Pagefind pages, `0` broken links), `CF2_PHASE02_EXPORT_PROOF: PASS`, `compile_applet`, and `lint_applet`.
+
+## 2026-11-18 — `CF2-Phase 03`: `dist/` Governance File Pruning, Strict CI `YOUR_ORG` Guard & Deployment Docs Sync (`CF2-F05`, `CF2-F09`)
+
+- Added `vib-prune-public-governance-docs` (`astro:build:done` hook) in `astro.config.mjs` and a corresponding assertion in `scripts/verify-build.mjs` so `public/MANIFEST.md` and `public/README.md` remain tracked in the repository but are never published to `dist/MANIFEST.md` or `dist/README.md` (`CF2-F05`).
+- Added fail-closed `CF_PAGES=1` / `STRICT_SYNC=1` / `--strict` guards in `scripts/sync-docs.mjs` and `scripts/verify-build.mjs` rejecting unreplaced `YOUR_ORG` starter repository URLs in production CI while preserving the local `./docs` fixture fallback for local smoke builds (`CF2-F09`).
+- Synchronized `docs/deployment.md`, `project/04-codebase-reference.md`, and `notes/028-cf2-roadmap-and-execution-tracker.md`.
+- Verified `npm test` (`16/16`), `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, `npm run verify` (`7` HTML files, `15` assets, `5` Pagefind pages, `0` broken links), `CF2_PHASE03_PROOF: PASS`, `compile_applet`, and `lint_applet`.
