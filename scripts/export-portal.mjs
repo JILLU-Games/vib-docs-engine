@@ -10,8 +10,12 @@ const excludedNames = new Set([
   "node_modules",
   "dist",
   ".astro",
+  ".wrangler",
   ".git",
   "notes",
+  ".playwright-mcp",
+  ".playwright-cli",
+  "artifacts",
 ]);
 const generatedRoots = ["src/content/docs", "src/generated", "public/logos"];
 
@@ -67,6 +71,12 @@ function shouldSkip(relativePath) {
   for (const generatedRoot of generatedRoots) {
     if (normalized === generatedRoot) return false;
     if (normalized.startsWith(`${generatedRoot}/`)) {
+      if (
+        generatedRoot === "public/logos" &&
+        normalized === "public/logos/vib-tools.svg"
+      ) {
+        return false;
+      }
       return normalized !== `${generatedRoot}/.gitkeep`;
     }
   }

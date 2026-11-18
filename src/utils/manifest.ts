@@ -32,7 +32,7 @@ export interface ManifestProject {
   slug: string;
   category: string;
   accentColor: string;
-  repoUrl: string;
+  repoUrl?: string;
   branch?: string;
   docsPath?: string;
   ctaLabel?: string;

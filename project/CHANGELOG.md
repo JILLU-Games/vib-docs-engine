@@ -19,3 +19,78 @@ Record dates, files/areas, behavior changed, and verification result whenever co
 - Verified exporter exclusions, `npx tsc --noEmit`, `npx astro sync`, and `npm run verify` (8 HTML pages, 6 required files, one product, no broken internal links). Production config was restored to remote-only.
 - Rewrote the GitHub README with verified Vib Tools project/author details, current features and workflows, natural-language SEO summary, and public contact links; added contributor/security reporting guides. No license or executive title was inferred.
 - Completed the GitHub-native submission layer with bug-report and feature-request forms, a pull-request template, private vulnerability routing, and `.github/` README/MANIFEST inventories. Updated the root manifest and contributor guidance; no application behavior or generated content was changed.
+
+## 2026-11-18 — Dev server startup & local self-docs sync fallback
+
+- Configured `package.json` (`dev`, `build`, and `preview` scripts) with `NODE_OPTIONS="--import data:text/javascript,process.versions.webcontainer='1'"` (enabling Astro 7 CLI's `>=22.22.0` container floor on Node `v22.23.2`) and `astro.config.mjs` (`server.host: "0.0.0.0"`, `server.port: 3000`, `vite.server.allowedHosts: true`) so the Astro dev server listens on port 3000 for container proxy environments.
+- Updated `scripts/sync-docs.mjs` (`syncProject`) to fall back to the verified in-repository `docsPath` directory when remote cloning fails for `vib-docs-engine` without credentials, allowing `predev` and `prebuild` to generate `src/generated/manifest.json` without modifying `config/projects.json`.
+- Moved `<nav aria-label="Breadcrumb">` inside the `max-w-[740px]` center reading column in `src/layouts/DocsLayout.astro` so the `xl:grid-cols-[minmax(0,1fr)_13rem]` layout keeps the article in the main column and `TableOfContents` in the right rail.
+- Verified `npm run verify`: 8 HTML files, 6 required assets, 1 project, and zero broken internal links.
+
+## 2026-11-18 — Phase 01: Sync Engine, Content Filtering & Brand Assets (`BUG-01`, `BUG-05`, `BUG-06`, `BUG-10`, `BUG-11`, `EH-01`–`EH-03`)
+
+- Added `public/logos/vib-tools.svg` matching `config/site.config.json` (`brand.logo`) and updated `scripts/sync-docs.mjs` (`clearOutputDirectory` and `main`) to preserve `.gitkeep`, `vib-tools.svg`, and configured brand logos in `public/logos/` during sync (`BUG-10`).
+- Added explicit YAML frontmatter (`title: Vib Docs Engine`, `description`, `version: "0.1.0"`) to `docs/index.md` (`BUG-11`) and prioritized `project.title` before `titleFromMarkdown` H1 fallback in `scripts/sync-docs.mjs`.
+- Implemented `normalizeDocsTree` and `resolveRootIndexPath` in `scripts/sync-docs.mjs` and matching filters in `src/utils/sidebar.ts`, `src/pages/[product]/[...slug].astro`, and `src/pages/[product]/llms.txt.ts` to recursively remove `MANIFEST.md` and `draft: true` files, deduplicate or promote `README.md` across all subdirectories, validate `draft` boolean frontmatter (`EH-01`, `EH-02`), and keep `"Overview"` as the root index sidebar label (`BUG-01`, `BUG-05`, `BUG-11`).
+- Updated `ManifestProject.repoUrl` in `src/utils/manifest.ts` to optional (`repoUrl?: string`) and added an early undefined guard in `src/components/docs/PrevNextNav.astro` (`getEditUrl`) (`BUG-06`, `EH-03`).
+- Verified `npm run sync`, `npx tsc --noEmit`, and `npm run verify`: 6 static HTML pages built (`MANIFEST` and `README` route pollution eliminated), 4 docs pages indexed by Pagefind, `"title": "Vib Docs Engine"` and `"version": "0.1.0"` in `src/generated/manifest.json`, and 0 broken internal links.
+
+## 2026-11-18 — Phase 02: Markdown Link Rewriting, Remark Pipeline & Build Verifier (`BUG-02`, `BUG-03`, `BUG-04`, `EH-04`)
+
+- Added `rewriteInternalMarkdownLinks` and `cleanSegment` in `astro.config.mjs` to rewrite relative `.md`/`.mdx` links (such as `[Adding Projects](adding-projects.md)`) into normalized Astro product routes (`/vib-docs-engine/adding-projects/`) with query/hash preservation (`BUG-02`).
+- Shared `sharedRemarkPlugins = [externalMarkdownLinks, rewriteInternalMarkdownLinks]` across both `mdx({ remarkPlugins: sharedRemarkPlugins })` and `markdown: { processor: unified({ remarkPlugins: sharedRemarkPlugins }) }` in `astro.config.mjs` so `.md` and `.mdx` documents share identical remark behavior without Astro 7 deprecation warnings (`BUG-03`).
+- Upgraded `scripts/verify-build.mjs` (`isInternalReference`, `resolveCandidatePath`, `resolveInternalHref`, `resolveInternalAsset`) to validate both root-relative and document-relative `href` attributes as well as internal `img[src]` assets across all generated HTML files in `dist/` (`BUG-02`, `BUG-04`, `EH-04`).
+- Verified `npm run verify` and `npx tsc --noEmit`: `<a href="/vib-docs-engine/adding-projects/">Adding Projects</a>` rendered in `dist/vib-docs-engine/index.html`, 6 HTML files verified, and 0 broken internal links or missing image assets.
+
+## 2026-11-18 — Phase 03: UI/UX Interactive Components & Dev Search Support (`BUG-12`, `BUG-13`, `BUG-14`, `BUG-15`, `BUG-16`)
+
+- Updated `src/utils/sidebar.ts` (`walk`) to resolve subfolder `SidebarGroup.title` from `index.md` frontmatter `title` when present and not `"Overview"`, and updated `src/components/docs/SidebarTree.astro` to highlight active group headers and normalize trailing slashes via `normalizePath` for active page links (`BUG-12`, `BUG-13`).
+- Added `ArrowDown`, `ArrowUp`, and `Enter` keyboard navigation across `#search-results a[href]` elements in `src/components/ui/SearchModal.astro` (`BUG-14`).
+- Added `servePagefindInDev` Vite middleware in `astro.config.mjs` to serve `/pagefind/*` assets from `dist/pagefind/` during `astro dev` (`BUG-15`).
+- Updated `src/components/mdx/CodeTabs.astro` to automatically bind direct child elements inside `[data-code-panels]` to `labels[index]` when explicit `[data-code-panel]` wrappers are omitted (`BUG-16`).
+- Verified `npm run verify`, `npx tsc --noEmit`, and live dev-mode Pagefind search and keyboard navigation on `http://localhost:3000`.
+
+## 2026-11-18 — Phase 04: CLI, Portal Exporter, Presets, AI Endpoints & Docker Hardening (`BUG-07`, `BUG-08`, `BUG-09`, `BUG-17`, `BUG-18`, `EH-05`, `EH-06`)
+
+- Updated `scripts/add-project.mjs` (`validateDocsPath`, `main`) to prompt for custom `docsPath` (default `"docs"`) with path traversal validation and enforce paired `ctaLabel`/`ctaUrl` persistence (`BUG-07`, `EH-05`).
+- Updated `scripts/export-portal.mjs` and `.gitignore` to exclude `.playwright-mcp`, `.playwright-cli`, and `artifacts`, and preserved `public/logos/vib-tools.svg` in exported portals (`BUG-08`).
+- Updated `scripts/sync-docs.mjs` (`syncProject`) to fall back to the local `./docs` fixture with an explicit operator warning when a preset entry still uses a `YOUR_ORG` placeholder URL (`BUG-09`, `EH-06`).
+- Updated `src/pages/[product]/llms.txt.ts` to strip YAML frontmatter via `gray-matter` before emitting markdown bodies (`BUG-17`).
+- Removed `ARG GIT_TOKEN` from `Dockerfile` so Git credentials are only accepted via BuildKit secret mounts (`BUG-18`).
+- Verified `npm run verify`, `npx tsc --noEmit`, clean YAML-free output in `dist/vib-docs-engine/llms.txt`, and `export-portal` smoke export.
+
+## 2026-11-18 — Phase 05: Per-Project Secret Key Config & Public/Private Git Sync
+
+- Added optional `secretKey`, `gitToken`, `gitTokenEnv`, and `gitUsername` fields to `projectSchema` in `scripts/sync-docs.mjs` and interactive prompts in `scripts/add-project.mjs`.
+- Implemented `resolveSecretValue`, `resolveProjectAuth`, and `runGitSparseClone` in `scripts/sync-docs.mjs`: private repos use their configured `secretKey` (supporting direct tokens or `$ENV_VAR` / `ENV_VAR` names) and auto-detect `oauth2` (GitLab) vs `x-access-token` (GitHub/Gitea/Forgejo), while public repos clone directly without any secret key.
+- Stripped `secretKey`, `gitToken`, `gitTokenEnv`, and `gitUsername` before writing `src/generated/manifest.json` and redacted project secrets in `sanitizeError`.
+- Updated `docs/adding-projects.md`, `notes/003-phase-execution-tracker.md`, and `project/04-codebase-reference.md`; verified `npm run verify` and `npx tsc --noEmit`.
+
+## 2026-11-18 — Phase 06: Cloudflare Pages & Functions Build-Ready Setup
+
+- Added `wrangler.toml`, `.node-version`, and `.nvmrc` pinning Node.js `22` and configuring `pages_build_output_dir = "dist"` for Cloudflare Pages & Functions.
+- Added `public/_headers` (edge cache and security headers), `public/_redirects` (legacy domain redirect), and `public/_routes.json` (routing `/api/*` to Cloudflare Pages Functions while serving all static pages from the CDN edge).
+- Added Cloudflare Pages Functions (`functions/api/health.ts` and `functions/api/webhook.ts`) for runtime health checks (`GET /api/health`) and secret-authenticated webhook rebuild relays (`POST /api/webhook`).
+- Updated `package.json` (`engines.node: ">=22.0.0"`, `cf:build`, `pages:build`, direct `pagefind --site dist` binary call, and `pagefind` moved to `dependencies` for production CI installs).
+- Updated `scripts/verify-build.mjs`, `scripts/export-portal.mjs`, `.gitignore`, `MANIFEST.md`, `public/MANIFEST.md`, `docs/deployment.md`, and `project/04-codebase-reference.md`; verified `npm run verify` and `npx tsc --noEmit`.
+
+## 2026-11-18 — CF-Phase 01: Cloudflare Build Determinism, Lockfile & Edge Headers/Redirects
+
+- Generated `package-lock.json` via `npm install --package-lock-only` so `npm ci`, `Dockerfile`, and Cloudflare Pages npm installs run deterministically alongside `bun.lock`.
+- Updated `package.json` (`dev`, `build`, `preview`) to preserve pre-existing CI `NODE_OPTIONS` flags (`${NODE_OPTIONS:+$NODE_OPTIONS }...`) and pinned `.node-version` and `.nvmrc` to `22.24.0` to satisfy Astro `7.4.12` (`>=22.23.4`).
+- Updated `public/_headers` with explicit `Content-Type: text/plain; charset=utf-8` and `Cache-Control` rules for `/llms.txt`, `/*/llms.txt`, and `/robots.txt`.
+- Fixed `public/_redirects` by removing the invalid custom-domain rule (`https://docs.vibtools.io/*`) that Cloudflare Pages `_redirects` does not support and that leaked into `dev-portal` exports.
+- Verified `NODE_OPTIONS="--max-old-space-size=2048" npm run build`, `node scripts/verify-build.mjs` (`6` HTML pages, `9` required assets, `0` broken links), and `npx tsc --noEmit`.
+
+## 2026-11-18 — CF-Phase 02: Cloudflare Pages Functions & Multi-Provider Webhook Hardening
+
+- Added `functions/tsconfig.json` (`ES2022`, `WebWorker` lib, strict isolated checking) for Cloudflare Pages Functions handlers.
+- Added `onRequest` `405 Method Not Allowed` fallback handler to `functions/api/health.ts`.
+- Upgraded `functions/api/webhook.ts` with Web Crypto `HMAC-SHA256` signature verification for GitHub (`X-Hub-Signature-256`) and Gitea/Forgejo (`X-Gitea-Signature`, `X-Forgejo-Signature`) alongside existing `X-Webhook-Secret`, `X-Gitlab-Token`, and `Authorization: Bearer` checks, plus optional `ALLOWED_BRANCHES` ref filtering (`200` skipped on non-matching branches).
+- Documented `ALLOWED_BRANCHES` in `wrangler.toml`; verified `npx tsc -p functions/tsconfig.json --noEmit` and automated 7/7 runtime assertions.
+
+## 2026-11-18 — CF-Phase 03: Build Verifier Upgrade & Documentation Sync
+
+- Updated `scripts/verify-build.mjs` to require `functions/tsconfig.json`, validate `dist/_routes.json` JSON schema (`version: 1`, `include`/`exclude` arrays), and flag unsupported non-`pages.dev` custom-domain source URLs in `dist/_redirects`.
+- Synchronized `docs/deployment.md`, `MANIFEST.md`, `project/04-codebase-reference.md`, and `notes/003-cloudflare-phase-tracker-and-future-plan.md` with the verified Cloudflare Pages & Functions setup (`22.24.0` Node pin, `package-lock.json`, multi-repo `GIT_TOKEN`/`secretKey`, HMAC webhooks, and Zone Redirect Rules).
+- Verified `npm run verify`, `npx tsc --noEmit`, `npx tsc -p functions/tsconfig.json --noEmit`, and `export-portal` smoke exports (`100%` Cloudflare Pages & Functions Ready).

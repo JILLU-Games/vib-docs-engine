@@ -66,6 +66,23 @@ async function createPromptReader() {
   return { readline, prompts };
 }
 
+function validateDocsPath(value) {
+  const trimmed = value.trim().replace(/^[\\/]+|[\\/]+$/g, "");
+  if (!trimmed) return "Documentation path cannot be empty.";
+  if (path.isAbsolute(value) || /^[\\/]|^[a-zA-Z]:/.test(value)) {
+    return "Documentation path must be a relative path inside the repository.";
+  }
+  const segments = trimmed.split(/[\\/]+/).filter(Boolean);
+  if (
+    segments.length === 0 ||
+    segments.includes("..") ||
+    segments.includes(".")
+  ) {
+    return "Documentation path cannot contain '.' or '..' segments.";
+  }
+  return "";
+}
+
 async function resolveLocalPath(value) {
   if (!value || path.isAbsolute(value) || value.split(/[\\/]/).includes(".."))
     return null;
@@ -129,25 +146,37 @@ async function main() {
         return "";
       },
     );
+    const branch = await askUntil(
+      prompts,
+      "Branch",
+      (value) => (value ? "" : "Branch cannot be empty."),
+      "main",
+    );
+    const accentColor = await askUntil(
+      prompts,
+      "Accent color",
+      (value) =>
+        hexColorPattern.test(value)
+          ? ""
+          : "Use a 3, 4, 6, or 8 digit hex color such as #2563eb.",
+      "#2563eb",
+    );
+    const docsPathInput = await askUntil(
+      prompts,
+      "Documentation path in repository",
+      validateDocsPath,
+      "docs",
+    );
     const project = {
       slug,
       category,
-      branch: await askUntil(
-        prompts,
-        "Branch",
-        (value) => (value ? "" : "Branch cannot be empty."),
-        "main",
-      ),
-      accentColor: await askUntil(
-        prompts,
-        "Accent color",
-        (value) =>
-          hexColorPattern.test(value)
-            ? ""
-            : "Use a 3, 4, 6, or 8 digit hex color such as #2563eb.",
-        "#2563eb",
-      ),
-      docsPath: "docs",
+      branch,
+      accentColor,
+      docsPath: docsPathInput
+        .trim()
+        .replace(/^[\\/]+|[\\/]+$/g, "")
+        .split(/[\\/]+/)
+        .join("/"),
     };
 
     if (isGitRemote(repositoryInput)) {
@@ -175,25 +204,53 @@ async function main() {
       if (localPath) project.localPath = localPath;
     }
 
+    if (project.repoUrl) {
+      const secretKeyInput = (
+        await prompts.question(
+          "Secret key / Git token for private repo (optional, leave blank for public repo): ",
+        )
+      ).trim();
+      if (secretKeyInput) {
+        project.secretKey = secretKeyInput;
+        const gitUsernameInput = (
+          await prompts.question(
+            "Git token username (optional, e.g. oauth2 for GitLab, leave blank for auto): ",
+          )
+        ).trim();
+        if (gitUsernameInput) {
+          project.gitUsername = gitUsernameInput;
+        }
+      }
+    }
+
     const ctaLabel = (await prompts.question("CTA label (optional): ")).trim();
     const ctaUrlInput = (
       await prompts.question("CTA URL (optional, HTTP(S)): ")
     ).trim();
-    if (ctaLabel) project.ctaLabel = ctaLabel;
+    let validCtaUrl = "";
     if (ctaUrlInput) {
       let ctaUrl = ctaUrlInput;
       while (true) {
         try {
           const parsed = new URL(ctaUrl);
-          if (parsed.protocol === "http:" || parsed.protocol === "https:")
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            validCtaUrl = ctaUrl;
             break;
+          }
         } catch {}
         ctaUrl = (
           await prompts.question("Enter a valid HTTP(S) URL, or leave blank: ")
         ).trim();
         if (!ctaUrl) break;
       }
-      if (ctaUrl) project.ctaUrl = ctaUrl;
+    }
+    if (validCtaUrl) {
+      project.ctaLabel = ctaLabel || "View repository";
+      project.ctaUrl = validCtaUrl;
+    } else if (ctaLabel) {
+      stdout.write(
+        "CTA URL was left blank; skipping CTA label so CTA configuration stays paired.\n",
+      );
     }
 
     projects.push(project);

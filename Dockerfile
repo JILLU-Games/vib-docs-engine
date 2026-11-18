@@ -6,7 +6,6 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 
-ARG GIT_TOKEN
 ARG GIT_USERNAME
 RUN --mount=type=secret,id=git_token,required=false \
     if [ -f /run/secrets/git_token ]; then export GIT_TOKEN="$(cat /run/secrets/git_token)"; fi && \

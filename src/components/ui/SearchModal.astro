@@ -168,7 +168,7 @@ import { Search, X } from "lucide-astro";
     if (!href) return null;
     const item = document.createElement("li");
     const link = document.createElement("a");
-    link.className = "block rounded-md px-3 py-2.5 text-inherit no-underline outline-none transition-colors hover:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)]";
+    link.className = "block rounded-md px-3 py-2.5 text-inherit no-underline outline-none transition-colors hover:bg-[var(--bg-hover)] focus:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)]";
     link.href = href;
 
     const heading = document.createElement("span");
@@ -198,7 +198,7 @@ import { Search, X } from "lucide-astro";
       const subHref = safeResultUrl(subResult.url);
       if (!subHref || !subResult.title) continue;
       const subLink = document.createElement("a");
-      subLink.className = "ml-3 mt-1 flex items-center gap-2 rounded px-2 py-1 text-xs text-[var(--text-muted)] no-underline hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]";
+      subLink.className = "ml-3 mt-1 flex items-center gap-2 rounded px-2 py-1 text-xs text-[var(--text-muted)] no-underline outline-none hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus:bg-[var(--bg-hover)] focus:text-[var(--text-primary)]";
       subLink.href = subHref;
       subLink.textContent = `↳ ${subResult.title}`;
       item.append(subLink);
@@ -278,6 +278,10 @@ import { Search, X } from "lucide-astro";
     if (lastFocusedElement?.isConnected) lastFocusedElement.focus();
   }
 
+  function getResultLinks(): HTMLAnchorElement[] {
+    return Array.from(resultsList?.querySelectorAll<HTMLAnchorElement>("a[href]") ?? []);
+  }
+
   window.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
@@ -285,6 +289,28 @@ import { Search, X } from "lucide-astro";
       void openModal({ productSlug: context?.dataset.productSlug, productTitle: context?.dataset.productTitle });
     } else if (event.key === "Escape" && modal && !modal.hidden) {
       closeModal();
+    } else if ((event.key === "ArrowDown" || event.key === "ArrowUp") && modal && !modal.hidden) {
+      const links = getResultLinks();
+      if (!links.length) return;
+      event.preventDefault();
+      const currentIndex = links.indexOf(document.activeElement as HTMLAnchorElement);
+      if (event.key === "ArrowDown") {
+        const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % links.length;
+        links[nextIndex]?.focus();
+      } else {
+        if (currentIndex === 0 && input) {
+          input.focus();
+        } else {
+          const prevIndex = currentIndex <= 0 ? links.length - 1 : currentIndex - 1;
+          links[prevIndex]?.focus();
+        }
+      }
+    } else if (event.key === "Enter" && modal && !modal.hidden && document.activeElement === input) {
+      const links = getResultLinks();
+      if (links.length > 0) {
+        event.preventDefault();
+        links[0]?.click();
+      }
     } else if (event.key === "Tab" && modal && !modal.hidden) {
       const focusable = Array.from(modal.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled]), a[href]"))
         .filter((element) => element.getClientRects().length > 0);

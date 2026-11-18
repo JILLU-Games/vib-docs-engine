@@ -30,7 +30,10 @@ const groupId = `code-tabs-${randomUUID()}`;
       );
     })}
   </div>
-  <div class="min-w-0 p-3 [&>[data-code-panel]]:hidden [&>[data-code-panel][data-active=true]]:block">
+  <div
+    class="min-w-0 p-3 [&>[data-code-panel]]:hidden [&>[data-code-panel][data-active=true]]:block"
+    data-code-panels
+  >
     <slot />
   </div>
 </section>
@@ -39,7 +42,18 @@ const groupId = `code-tabs-${randomUUID()}`;
   document.querySelectorAll<HTMLElement>("[data-code-tabs]").forEach((group) => {
     const groupId = group.dataset.codeTabsId ?? "code-tabs";
     const buttons = Array.from(group.querySelectorAll<HTMLButtonElement>("[data-tab-trigger]"));
-    const panels = Array.from(group.querySelectorAll<HTMLElement>("[data-code-panel]"));
+    const panelContainer = group.querySelector<HTMLElement>("[data-code-panels]");
+    let panels = Array.from(group.querySelectorAll<HTMLElement>("[data-code-panel]"));
+
+    if (panels.length === 0 && panelContainer) {
+      panels = Array.from(panelContainer.children).filter(
+        (child): child is HTMLElement => child instanceof HTMLElement,
+      );
+      panels.forEach((panel, index) => {
+        const fallbackLabel = buttons[index]?.dataset.tabTrigger ?? String(index);
+        panel.dataset.codePanel = fallbackLabel;
+      });
+    }
 
     panels.forEach((panel, index) => {
       panel.id = `${groupId}-panel-${index}`;

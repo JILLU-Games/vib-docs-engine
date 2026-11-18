@@ -40,21 +40,21 @@ const sourceDirectories = page.source
       <Sidebar product={product} currentPath={Astro.url.pathname} />
 
       <main id="main-content" class="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_13rem]">
-        <nav class="mb-5 flex min-w-0 flex-wrap items-center gap-1 text-xs text-[var(--text-muted)]" aria-label="Breadcrumb">
-          <a class="shrink-0 text-[var(--text-muted)] no-underline hover:text-[var(--text-primary)]" href="/">Docs</a>
-          <ChevronRight class="size-3 shrink-0" aria-hidden="true" />
-          <a class="shrink-0 text-[var(--text-muted)] no-underline hover:text-[var(--text-primary)]" href={`/${product.slug}/`}>{product.title}</a>
-          {sourceDirectories.map((directory) => (
-            <>
-              <ChevronRight class="size-3 shrink-0" aria-hidden="true" />
-              <span class="truncate">{directory}</span>
-            </>
-          ))}
-          <ChevronRight class="size-3 shrink-0" aria-hidden="true" />
-          <span class="truncate text-[var(--text-primary)]" aria-current="page">{pageTitle}</span>
-        </nav>
-
         <div class="mx-auto w-full max-w-[740px] px-5 py-6 sm:px-8">
+          <nav class="mb-5 flex min-w-0 flex-wrap items-center gap-1 text-xs text-[var(--text-muted)]" aria-label="Breadcrumb">
+            <a class="shrink-0 text-[var(--text-muted)] no-underline hover:text-[var(--text-primary)]" href="/">Docs</a>
+            <ChevronRight class="size-3 shrink-0" aria-hidden="true" />
+            <a class="shrink-0 text-[var(--text-muted)] no-underline hover:text-[var(--text-primary)]" href={`/${product.slug}/`}>{product.title}</a>
+            {sourceDirectories.map((directory) => (
+              <>
+                <ChevronRight class="size-3 shrink-0" aria-hidden="true" />
+                <span class="truncate">{directory}</span>
+              </>
+            ))}
+            <ChevronRight class="size-3 shrink-0" aria-hidden="true" />
+            <span class="truncate text-[var(--text-primary)]" aria-current="page">{pageTitle}</span>
+          </nav>
+
           <article
             class="docs-prose prose prose-sm max-w-none"
             data-doc-article

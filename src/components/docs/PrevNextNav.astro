@@ -12,7 +12,8 @@ const pageIndex = product.flatPages.findIndex((candidate) => candidate.route ===
 const previous = pageIndex > 0 ? product.flatPages[pageIndex - 1] : undefined;
 const next = pageIndex >= 0 ? product.flatPages[pageIndex + 1] : undefined;
 
-function getEditUrl(repoUrl: string, branch: string, docsPath: string, source: string): string | undefined {
+function getEditUrl(repoUrl: string | undefined, branch: string, docsPath: string, source: string): string | undefined {
+  if (!repoUrl) return undefined;
   let host: string;
   let repositoryPath: string;
 

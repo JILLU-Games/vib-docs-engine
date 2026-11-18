@@ -32,6 +32,7 @@ Append an object to the JSON array in `config/projects.json`. Example:
   "category": "Developer Tools",
   "accentColor": "#22C55E",
   "repoUrl": "https://git.example.com/team/product-name.git",
+  "secretKey": "$GIT_TOKEN",
   "branch": "main",
   "docsPath": "docs",
   "ctaLabel": "View repository",
@@ -42,13 +43,14 @@ Append an object to the JSON array in `config/projects.json`. Example:
 }
 ```
 
-Required fields are `slug`, `category`, `accentColor`, `repoUrl`, `ctaLabel`, and `ctaUrl`. `branch` defaults to `main`; `docsPath` defaults to `docs`. `title`, `description`, and `version` are optional fallbacks for missing frontmatter values. Prefer source frontmatter as the primary product metadata.
+Required fields are `slug`, `category`, `accentColor`, and `repoUrl` (unless `localPath` is used for local testing). `branch` defaults to `main`; `docsPath` defaults to `docs`. `secretKey` (or `gitToken` / `gitTokenEnv`) and `gitUsername` are optional fields used only for private repositories—omit them or leave them blank for public repositories. `title`, `description`, and `version` are optional fallbacks for missing frontmatter values.
 
-Use a unique, URL-safe slug. Choose any category label that makes sense; category filters are derived dynamically from this file and do not require a fixed list. Use a valid CSS color for `accentColor`. Repository URLs may use supported Git HTTPS or SSH transports for GitHub, GitLab, Gitea, or Forgejo. Do not place credentials in the URL. Keep `docsPath` relative and inside the repository. The CTA can point to the source repository or another relevant destination.
+Use a unique, URL-safe slug. Choose any category label that makes sense; category filters are derived dynamically from this file and do not require a fixed list. Use a valid CSS color for `accentColor`. Repository URLs may use supported Git HTTPS or SSH transports for GitHub, GitLab, Gitea, or Forgejo. Do not place credentials inside `repoUrl`.
 
-## 3. Configure private repository access if needed
+## 3. Configure public vs. private repository access
 
-Public repositories need no credentials. For a private repository, configure a read-only deploy key or narrowly scoped token in the build environment and use the Git transport supported by your host. Use the deployment platform's secret store or the server's protected credential helper. Never commit credentials, include them in `repoUrl`, or expose them through public build variables or generated manifest data.
+- **Public repositories:** require no `secretKey` or `GIT_TOKEN`. Leave `secretKey` omitted and `scripts/sync-docs.mjs` clones the repository directly without credentials.
+- **Private repositories:** set `secretKey` on the project in `config/projects.json` (either an environment variable reference such as `"$GIT_TOKEN"` / `"GIT_TOKEN"` or a read-only token, plus optional `gitUsername` if your Git host requires a custom username; GitLab defaults to `oauth2` and GitHub/Gitea/Forgejo default to `x-access-token`). `scripts/sync-docs.mjs` automatically strips `secretKey`, `gitToken`, `gitTokenEnv`, and `gitUsername` before writing `src/generated/manifest.json` and redacts them from logs.
 
 ## 4. Configure rebuild webhooks
 

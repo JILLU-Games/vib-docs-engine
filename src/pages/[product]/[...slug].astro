@@ -20,9 +20,11 @@ export async function getStaticPaths() {
 
   for (const product of manifest.projects) {
     const projectPrefix = `${product.slug}/`;
-    const productEntries = entries.filter((entry) =>
-      entry.id.replace(/\\/g, "/") === product.slug ||
-      entry.id.replace(/\\/g, "/").startsWith(projectPrefix),
+    const productEntries = entries.filter(
+      (entry) =>
+        entry.data.draft !== true &&
+        (entry.id.replace(/\\/g, "/") === product.slug ||
+          entry.id.replace(/\\/g, "/").startsWith(projectPrefix)),
     );
 
     if (product.flatPages.length > 0 && productEntries.length === 0) {

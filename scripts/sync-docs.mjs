@@ -65,6 +65,10 @@ const projectSchema = z
     accentColor: hexColorSchema,
     repoUrl: z.string().optional(),
     localPath: z.string().optional(),
+    secretKey: z.string().trim().optional(),
+    gitToken: z.string().trim().optional(),
+    gitTokenEnv: z.string().trim().optional(),
+    gitUsername: z.string().trim().optional(),
     branch: z.string().trim().min(1).default("main"),
     docsPath: z.string().trim().min(1).default("docs"),
     ctaLabel: z.string().trim().min(1).optional(),
@@ -99,7 +103,7 @@ const projectSchema = z
           context.addIssue({
             code: "custom",
             message:
-              "repoUrl must not contain credentials; use GIT_TOKEN instead",
+              "repoUrl must not contain credentials; use secretKey or GIT_TOKEN instead",
             path: ["repoUrl"],
           });
         }
@@ -139,13 +143,16 @@ function sanitizeError(error, secrets = []) {
   return message.replace(/https:\/\/[^/@\s]+@/gi, "https://[REDACTED]@");
 }
 
-async function clearOutputDirectory(directory) {
+async function clearOutputDirectory(
+  directory,
+  preservedNames = new Set([".gitkeep"]),
+) {
   await fs.mkdir(directory, { recursive: true });
   for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
     const entryPath = path.join(directory, entry.name);
-    if (entry.name === ".gitkeep") continue;
+    if (preservedNames.has(entry.name)) continue;
     if (entry.isDirectory()) {
-      await clearOutputDirectory(entryPath);
+      await clearOutputDirectory(entryPath, preservedNames);
       const remaining = await fs.readdir(entryPath);
       if (remaining.length === 0) await fs.rmdir(entryPath);
     } else {
@@ -185,16 +192,114 @@ async function copyTree(source, destination) {
   }
 }
 
-function authenticatedCloneUrl(repoUrl, token) {
+async function normalizeDocsTree(directory, relativeDirectory = "") {
+  const initialEntries = await fs.readdir(directory, { withFileTypes: true });
+  for (const entry of initialEntries) {
+    if (entry.isFile() && entry.name.toLowerCase() === "manifest.md") {
+      await fs.rm(path.join(directory, entry.name), { force: true });
+    }
+  }
+
+  const afterManifestEntries = await fs.readdir(directory, {
+    withFileTypes: true,
+  });
+  const hasExplicitIndex = afterManifestEntries.some(
+    (entry) => entry.isFile() && /^index\.mdx?$/i.test(entry.name),
+  );
+  const readmeEntries = afterManifestEntries.filter(
+    (entry) => entry.isFile() && /^readme\.mdx?$/i.test(entry.name),
+  );
+
+  for (const [index, readmeEntry] of readmeEntries.entries()) {
+    const readmePath = path.join(directory, readmeEntry.name);
+    if (hasExplicitIndex || index > 0) {
+      await fs.rm(readmePath, { force: true });
+    } else {
+      const ext =
+        path.extname(readmeEntry.name).toLowerCase() === ".mdx"
+          ? ".mdx"
+          : ".md";
+      await fs.rename(readmePath, path.join(directory, `index${ext}`));
+    }
+  }
+
+  const currentEntries = await fs.readdir(directory, { withFileTypes: true });
+  for (const entry of currentEntries) {
+    const entryPath = path.join(directory, entry.name);
+    const relPath = relativeDirectory
+      ? `${relativeDirectory}/${entry.name}`
+      : entry.name;
+    if (entry.isDirectory()) {
+      await normalizeDocsTree(entryPath, relPath);
+      const remaining = await fs.readdir(entryPath);
+      if (remaining.length === 0) await fs.rmdir(entryPath);
+    } else if (entry.isFile() && /\.mdx?$/i.test(entry.name)) {
+      const source = await fs.readFile(entryPath, "utf8");
+      const { data } = matter(source);
+      if (data.draft !== undefined && typeof data.draft !== "boolean") {
+        throw new Error(`Frontmatter draft in ${relPath} must be a boolean`);
+      }
+      if (data.draft === true) {
+        await fs.rm(entryPath, { force: true });
+      }
+    }
+  }
+}
+
+async function resolveRootIndexPath(directory) {
+  for (const candidate of ["index.md", "index.mdx"]) {
+    const fullPath = path.join(directory, candidate);
+    try {
+      await fs.access(fullPath);
+      return fullPath;
+    } catch {}
+  }
+  throw new Error(
+    `Missing required root index.md (or README.md) in ${directory}`,
+  );
+}
+
+function resolveSecretValue(raw) {
+  const trimmed = typeof raw === "string" ? raw.trim() : "";
+  if (!trimmed) return "";
+  if (trimmed.startsWith("$")) {
+    return (process.env[trimmed.slice(1).trim()] || "").trim();
+  }
+  if (/^[A-Z_][A-Z0-9_]*$/.test(trimmed) && process.env[trimmed]) {
+    return (process.env[trimmed] || "").trim();
+  }
+  return trimmed;
+}
+
+function resolveProjectAuth(project, globalToken = "") {
+  const explicitToken =
+    resolveSecretValue(project.secretKey) ||
+    resolveSecretValue(project.gitToken) ||
+    (project.gitTokenEnv
+      ? (process.env[project.gitTokenEnv.trim()] || "").trim()
+      : "");
+  const username =
+    resolveSecretValue(project.gitUsername) ||
+    (process.env.GIT_USERNAME || "").trim();
+  return {
+    explicitToken,
+    fallbackToken: (globalToken || "").trim(),
+    username,
+  };
+}
+
+function authenticatedCloneUrl(repoUrl, token, username = "") {
   if (!token || !repoUrl.toLowerCase().startsWith("https://")) return repoUrl;
   const parsed = new URL(repoUrl);
-  parsed.username = process.env.GIT_USERNAME || "x-access-token";
+  const defaultUser = parsed.hostname.toLowerCase().includes("gitlab")
+    ? "oauth2"
+    : "x-access-token";
+  parsed.username = username || process.env.GIT_USERNAME || defaultUser;
   parsed.password = token;
   return parsed.toString();
 }
 
-function cloneAndCheckout(project, destination, token) {
-  const cloneUrl = authenticatedCloneUrl(project.repoUrl, token);
+function runGitSparseClone(cloneUrl, branch, docsPath, destination) {
   execFileSync(
     "git",
     [
@@ -204,7 +309,7 @@ function cloneAndCheckout(project, destination, token) {
       "--filter=blob:none",
       "--sparse",
       "--branch",
-      project.branch,
+      branch,
       cloneUrl,
       destination,
     ],
@@ -221,11 +326,52 @@ function cloneAndCheckout(project, destination, token) {
       },
     },
   );
-  execFileSync("git", ["sparse-checkout", "set", project.docsPath], {
+  execFileSync("git", ["sparse-checkout", "set", docsPath], {
     cwd: destination,
     stdio: "pipe",
     encoding: "utf8",
   });
+}
+
+async function cloneAndCheckout(project, destination, token) {
+  const { explicitToken, fallbackToken, username } = resolveProjectAuth(
+    project,
+    token,
+  );
+  if (explicitToken) {
+    const cloneUrl = authenticatedCloneUrl(
+      project.repoUrl,
+      explicitToken,
+      username,
+    );
+    runGitSparseClone(cloneUrl, project.branch, project.docsPath, destination);
+    return;
+  }
+
+  try {
+    runGitSparseClone(
+      project.repoUrl,
+      project.branch,
+      project.docsPath,
+      destination,
+    );
+  } catch (publicCloneError) {
+    if (!fallbackToken || !project.repoUrl.toLowerCase().startsWith("https://")) {
+      throw publicCloneError;
+    }
+    await fs.rm(destination, { recursive: true, force: true });
+    const fallbackUrl = authenticatedCloneUrl(
+      project.repoUrl,
+      fallbackToken,
+      username,
+    );
+    runGitSparseClone(
+      fallbackUrl,
+      project.branch,
+      project.docsPath,
+      destination,
+    );
+  }
 }
 
 function formatSlug(slug) {
@@ -313,34 +459,51 @@ async function syncProject(project, buildSidebar, token) {
   let temporaryDirectory;
   try {
     let sourceDirectory;
+    const selfDocsCandidate = path.resolve(projectRoot, project.docsPath);
+    const defaultLocalDocsCandidate = path.resolve(projectRoot, "docs");
     if (project.localPath) {
       sourceDirectory = path.resolve(projectRoot, project.localPath);
       assertWithin(projectRoot, sourceDirectory, "localPath");
-    } else {
+    } else if (project.slug === "vib-docs-engine") {
+      assertWithin(projectRoot, selfDocsCandidate, "docsPath");
+      const stat = await fs.lstat(selfDocsCandidate).catch(() => null);
+      if (stat?.isDirectory()) {
+        sourceDirectory = selfDocsCandidate;
+      }
+    } else if (
+      typeof project.repoUrl === "string" &&
+      project.repoUrl.includes("YOUR_ORG")
+    ) {
+      assertWithin(projectRoot, defaultLocalDocsCandidate, "docs");
+      const stat = await fs.lstat(defaultLocalDocsCandidate).catch(() => null);
+      if (stat?.isDirectory()) {
+        console.warn(
+          `Warning [${project.slug}]: repoUrl uses starter placeholder (${project.repoUrl}); using local ./docs fixture for smoke build.`,
+        );
+        sourceDirectory = defaultLocalDocsCandidate;
+      }
+    }
+
+    if (!sourceDirectory) {
       temporaryDirectory = await fs.mkdtemp(
         path.join(os.tmpdir(), "vib-docs-sync-"),
       );
       const checkoutDirectory = path.join(temporaryDirectory, "checkout");
-      cloneAndCheckout(project, checkoutDirectory, token);
+      await cloneAndCheckout(project, checkoutDirectory, token);
       sourceDirectory = path.join(checkoutDirectory, project.docsPath);
     }
 
     await copyTree(sourceDirectory, contentDirectory);
-    const indexPath = path.join(contentDirectory, "index.md");
-    try {
-      await fs.access(indexPath);
-    } catch {
-      const readmePath = path.join(contentDirectory, "README.md");
-      await fs.copyFile(readmePath, indexPath);
-    }
+    await normalizeDocsTree(contentDirectory);
+    const indexPath = await resolveRootIndexPath(contentDirectory);
 
     const indexSource = await fs.readFile(indexPath, "utf8");
     const parsedIndex = matter(indexSource);
     const frontmatter = parsedIndex.data;
     const title =
       metadataString(frontmatter.title, "title", project) ||
-      titleFromMarkdown(parsedIndex.content) ||
       project.title ||
+      titleFromMarkdown(parsedIndex.content) ||
       formatSlug(project.slug);
     const description =
       metadataString(frontmatter.description, "description", project) ||
@@ -359,7 +522,14 @@ async function syncProject(project, buildSidebar, token) {
       parseFrontmatter: (source) => matter(source).data,
       joinPath: path.join,
     });
-    const { localPath, ...manifestProject } = project;
+    const {
+      localPath,
+      secretKey,
+      gitToken,
+      gitTokenEnv,
+      gitUsername,
+      ...manifestProject
+    } = project;
 
     return {
       ...manifestProject,
@@ -382,12 +552,6 @@ async function syncProject(project, buildSidebar, token) {
 }
 
 async function main() {
-  await Promise.all([
-    clearOutputDirectory(docsOutput),
-    clearOutputDirectory(logosOutput),
-    clearOutputDirectory(generatedOutput),
-  ]);
-
   const rawSiteConfig = parseJsonFile(siteConfigPath);
   const siteResult = siteConfigSchema.safeParse(rawSiteConfig);
   if (!siteResult.success) {
@@ -396,6 +560,16 @@ async function main() {
     );
   }
   const siteConfig = siteResult.data;
+  const preservedLogos = new Set([".gitkeep", "vib-tools.svg"]);
+  if (siteConfig.brandLogo.startsWith("/logos/")) {
+    preservedLogos.add(path.posix.basename(siteConfig.brandLogo));
+  }
+
+  await Promise.all([
+    clearOutputDirectory(docsOutput),
+    clearOutputDirectory(logosOutput, preservedLogos),
+    clearOutputDirectory(generatedOutput),
+  ]);
   const rawProjects = parseJsonFile(projectsConfigPath);
   if (!Array.isArray(rawProjects))
     throw new Error("config/projects.json must contain a JSON array");
@@ -423,8 +597,15 @@ async function main() {
       syncedProjects.push(await syncProject(project, buildSidebar, token));
       console.log(`Synced ${project.slug}`);
     } catch (error) {
+      const secretsToRedact = [
+        token,
+        project.secretKey,
+        project.gitToken,
+        resolveSecretValue(project.secretKey),
+        resolveSecretValue(project.gitToken),
+      ];
       console.warn(
-        `Warning: could not sync ${project.slug}: ${sanitizeError(error, [token])}`,
+        `Warning: could not sync ${project.slug}: ${sanitizeError(error, secretsToRedact)}`,
       );
     }
   }

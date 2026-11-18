@@ -40,25 +40,51 @@ function routeToHtml(route) {
   return path.join(distDirectory, ...segments, "index.html");
 }
 
-async function resolveInternalHref(href) {
-  const withoutQueryOrHash = href.split(/[?#]/, 1)[0];
-  if (withoutQueryOrHash === "")
-    return exists(path.join(distDirectory, "index.html"));
+function isInternalReference(value) {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//")) {
+    return false;
+  }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    return false;
+  }
+  return true;
+}
+
+function resolveCandidatePath(rawRef, sourceHtmlFile) {
+  const withoutQueryOrHash = rawRef.split(/[?#]/, 1)[0];
+  if (withoutQueryOrHash === "") {
+    return rawRef.startsWith("?") || rawRef.startsWith("#")
+      ? sourceHtmlFile
+      : null;
+  }
 
   let decodedPath;
   try {
     decodedPath = decodeURIComponent(withoutQueryOrHash);
   } catch {
-    return false;
+    return null;
   }
-  const candidatePath = path.resolve(distDirectory, `.${decodedPath}`);
+
+  const candidatePath = decodedPath.startsWith("/")
+    ? path.resolve(distDirectory, `.${decodedPath}`)
+    : path.resolve(path.dirname(sourceHtmlFile), decodedPath);
+
   const relative = path.relative(distDirectory, candidatePath);
   if (
     path.isAbsolute(relative) ||
     relative === ".." ||
     relative.startsWith(`..${path.sep}`)
-  )
-    return false;
+  ) {
+    return null;
+  }
+
+  return candidatePath;
+}
+
+async function resolveInternalHref(href, sourceHtmlFile) {
+  const candidatePath = resolveCandidatePath(href, sourceHtmlFile);
+  if (!candidatePath) return false;
 
   if (await exists(candidatePath)) {
     const stat = await fs.stat(candidatePath);
@@ -75,6 +101,17 @@ async function resolveInternalHref(href) {
   return false;
 }
 
+async function resolveInternalAsset(src, sourceHtmlFile) {
+  const candidatePath = resolveCandidatePath(src, sourceHtmlFile);
+  if (!candidatePath) return false;
+
+  if (await exists(candidatePath)) {
+    const stat = await fs.stat(candidatePath);
+    return stat.isFile();
+  }
+  return false;
+}
+
 async function main() {
   try {
     const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
@@ -84,12 +121,75 @@ async function main() {
       "robots.txt",
       "sitemap-index.xml",
       "llms.txt",
+      "_headers",
+      "_redirects",
+      "_routes.json",
       path.join("pagefind", "pagefind.js"),
     ];
     for (const file of requiredFiles) {
       const filePath = path.join(distDirectory, file);
       if (!(await exists(filePath)))
         missingFiles.push(path.relative(projectRoot, filePath));
+    }
+
+    const cloudflareErrors = [];
+    const requiredCloudflareSourceFiles = [
+      "wrangler.toml",
+      ".node-version",
+      ".nvmrc",
+      path.join("functions", "tsconfig.json"),
+      path.join("functions", "api", "health.ts"),
+      path.join("functions", "api", "webhook.ts"),
+    ];
+    for (const file of requiredCloudflareSourceFiles) {
+      const filePath = path.join(projectRoot, file);
+      if (!(await exists(filePath)))
+        missingFiles.push(path.relative(projectRoot, filePath));
+    }
+
+    const distRoutesPath = path.join(distDirectory, "_routes.json");
+    if (await exists(distRoutesPath)) {
+      try {
+        const routesConfig = JSON.parse(await fs.readFile(distRoutesPath, "utf8"));
+        if (
+          routesConfig?.version !== 1 ||
+          !Array.isArray(routesConfig?.include) ||
+          !Array.isArray(routesConfig?.exclude)
+        ) {
+          cloudflareErrors.push(
+            "dist/_routes.json must specify version: 1 with include and exclude arrays",
+          );
+        }
+      } catch (error) {
+        cloudflareErrors.push(
+          `dist/_routes.json is invalid JSON: ${error.message}`,
+        );
+      }
+    }
+
+    const distRedirectsPath = path.join(distDirectory, "_redirects");
+    if (await exists(distRedirectsPath)) {
+      const redirectLines = (await fs.readFile(distRedirectsPath, "utf8"))
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("#"));
+      for (const line of redirectLines) {
+        const sourcePattern = line.split(/\s+/)[0] || "";
+        if (/^https?:\/\//i.test(sourcePattern)) {
+          try {
+            const parsedSource = new URL(sourcePattern);
+            if (!parsedSource.hostname.endsWith(".pages.dev")) {
+              cloudflareErrors.push(
+                `dist/_redirects contains unsupported custom-domain source rule "${sourcePattern}" (use Cloudflare Redirect Rules instead)`,
+              );
+            }
+          } catch {
+            cloudflareErrors.push(
+              `dist/_redirects contains invalid source URL "${sourcePattern}"`,
+            );
+          }
+        }
+      }
     }
 
     for (const project of manifest.projects ?? []) {
@@ -115,20 +215,36 @@ async function main() {
       const hrefPattern = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
       for (const match of html.matchAll(hrefPattern)) {
         const href = (match[1] ?? match[2] ?? "").replace(/&amp;/g, "&");
-        if (!href.startsWith("/") || href.startsWith("//")) continue;
-        if (!(await resolveInternalHref(href))) {
+        if (!isInternalReference(href)) continue;
+        if (!(await resolveInternalHref(href, htmlFile))) {
           brokenLinks.push(
             `${path.relative(distDirectory, htmlFile)} -> ${href}`,
           );
         }
       }
+
+      const imgSrcPattern =
+        /<img\b[^>]*?\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>/gi;
+      for (const match of html.matchAll(imgSrcPattern)) {
+        const src = (match[1] ?? match[2] ?? "").replace(/&amp;/g, "&");
+        if (!isInternalReference(src)) continue;
+        if (!(await resolveInternalAsset(src, htmlFile))) {
+          brokenLinks.push(
+            `${path.relative(distDirectory, htmlFile)} -> img[src="${src}"]`,
+          );
+        }
+      }
     }
 
-    if (missingFiles.length || brokenLinks.length) {
+    if (missingFiles.length || brokenLinks.length || cloudflareErrors.length) {
       console.error("Build verification failed.");
       if (missingFiles.length) {
         console.error("Missing files:");
         for (const file of missingFiles) console.error(`  - ${file}`);
+      }
+      if (cloudflareErrors.length) {
+        console.error("Cloudflare configuration errors:");
+        for (const err of cloudflareErrors) console.error(`  - ${err}`);
       }
       if (brokenLinks.length) {
         console.error("Broken internal links:");

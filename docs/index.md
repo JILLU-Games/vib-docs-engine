@@ -1,3 +1,9 @@
+---
+title: Vib Docs Engine
+description: A static multi-product documentation engine.
+version: "0.1.0"
+---
+
 # Operating vib-docs-engine
 
 `vib-docs-engine` builds static documentation portals for multiple products. Configuration selects the portal identity and product repositories. During a build, the engine fetches only configured documentation directories with Git sparse checkout, validates and normalizes content, generates a manifest/sidebar tree, and then builds Astro static pages and a local Pagefind search index.
@@ -15,10 +21,10 @@ The engine includes the Astro/Tailwind configuration, Content Collection schema,
 1. Install dependencies using `npm install` (or `npm ci` from the lockfile in CI).
 2. Set `GIT_TOKEN` in the process environment or deployment secret store when private HTTPS repositories require it. Set `GIT_USERNAME` only when the Git host requires a different token username. Never commit credentials or put them in public build variables.
 3. Run `npm run sync` to synchronize docs and regenerate `src/generated/manifest.json`.
-4. Run `npm run dev` to sync automatically, then start Astro's development server.
-5. Run `npm run build` to sync, build Astro, and run Pagefind. `npm run preview` previews an existing Astro build.
+4. Run `npm run dev` to sync automatically, then start Astro's development server on `0.0.0.0:3000`.
+5. Run `npm run build` to sync, build Astro, and run Pagefind. `npm run preview` previews an existing Astro build on `0.0.0.0:3000`.
 
-The `predev` and `prebuild` lifecycle hooks run the sync script automatically. `localPath` can temporarily target a local folder (for example `./docs`) for an isolated sync test; keep it out of production config. Generated content and manifests are ignored build inputs and must not be hand-edited.
+The `predev` and `prebuild` lifecycle hooks run the sync script automatically. When syncing the engine's own `vib-docs-engine` record without remote Git credentials, `scripts/sync-docs.mjs` falls back to the in-repository `docs/` directory. `localPath` can also temporarily target a local folder (for example `./docs`) for an isolated sync test; keep it out of production config. Generated content and manifests are ignored build inputs and must not be hand-edited.
 
 Press `Ctrl+K` (or `Cmd+K` on macOS) anywhere to open search. On a product page, search starts scoped to that product; switch to “All Docs” for portal-wide results. Hub searches are global. The Pagefind index is local and is generated during production builds; dev mode displays a note if no index exists yet.
 

@@ -1,5 +1,6 @@
 import type { APIRoute, GetStaticPaths } from "astro";
 import { getCollection } from "astro:content";
+import matter from "gray-matter";
 import { readFile } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 import manifest from "../../generated/manifest.json";
@@ -32,6 +33,7 @@ export const GET: APIRoute = async (context) => {
   const orderedSources: FlatPage[] = project.flatPages;
   const pageEntries = entries
     .flatMap((entry) => {
+      if (entry.data.draft === true) return [];
       const normalizedId = entry.id.replace(/\\/g, "/");
       if (
         normalizedId !== project.slug &&
@@ -78,10 +80,11 @@ export const GET: APIRoute = async (context) => {
   lines.push("", "## Full documentation", "");
   for (const { page, entry } of pageEntries) {
     const pageUrl = new URL(page.route, manifest.site.domain).href;
-    const source = entry.filePath
+    const rawSource = entry.filePath
       ? await readFile(entry.filePath, "utf8")
       : entry.body || "";
-    lines.push(`<!-- ${pageUrl} -->`, "", source.trim(), "");
+    const cleanBody = matter(rawSource).content.trim();
+    lines.push(`<!-- ${pageUrl} -->`, "", cleanBody, "");
   }
 
   return new Response(`${lines.join("\n")}\n`, {

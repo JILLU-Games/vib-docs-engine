@@ -1,0 +1,15 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "vib-docs-engine"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-01-01"
+
+# Cloudflare Pages & Functions Configuration
+# Build command: npm run build
+# Build output directory: dist
+#
+# Optional Environment Secrets (set in Cloudflare Pages Dashboard -> Settings -> Environment variables):
+# - GIT_TOKEN: Default personal access token / deploy token for private docs repositories
+# - GIT_USERNAME: Optional custom Git username (auto-detected as x-access-token or oauth2 when omitted)
+# - CF_DEPLOY_HOOK_URL: Optional Cloudflare Pages Deploy Hook URL used by POST /api/webhook
+# - WEBHOOK_SECRET: Optional shared secret validated via X-Webhook-Secret, X-Gitlab-Token, Bearer, or GitHub/Gitea/Forgejo HMAC-SHA256
+# - ALLOWED_BRANCHES: Optional comma-separated branch allowlist for webhook pushes (e.g. "main,docs")

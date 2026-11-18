@@ -81,12 +81,21 @@ export async function buildSidebar(options: SidebarOptions): Promise<{
     relativeFile: string,
     directoryRoute: string,
     filename: string,
-  ): Promise<SidebarPage> {
+    treatReadmeAsIndex = false,
+    rootLevel = false,
+  ): Promise<SidebarPage | null> {
     const source = await readTextFile(filePath);
     const data = parseFrontmatter(source);
+    if (data.draft !== undefined && typeof data.draft !== "boolean") {
+      throw new Error(`Frontmatter draft in ${relativeFile} must be a boolean`);
+    }
+    if (data.draft === true) return null;
+
     const extension = filename.toLowerCase().endsWith(".mdx") ? 4 : 3;
     const stem = filename.slice(0, -extension);
-    const isIndex = stem.toLowerCase() === "index";
+    const lowerStem = stem.toLowerCase();
+    const isIndex =
+      lowerStem === "index" || (treatReadmeAsIndex && lowerStem === "readme");
     const routeSegment = isIndex ? "" : `${cleanSegment(stem)}/`;
     const route = `${directoryRoute}${routeSegment}` || `/${projectSlug}/`;
     if (seenRoutes.has(route)) throw new Error(`Route collision at ${route}`);
@@ -101,9 +110,14 @@ export async function buildSidebar(options: SidebarOptions): Promise<{
       throw new Error(`Frontmatter order in ${relativeFile} must be a number`);
     }
 
+    const resolvedTitle =
+      rootLevel && isIndex
+        ? "Overview"
+        : data.title?.trim() || humanize(isIndex ? "index" : stem);
+
     return {
       type: "page",
-      title: data.title?.trim() || humanize(stem),
+      title: resolvedTitle,
       route,
       source: relativeFile.split("\\").join("/"),
       order: orderValue,
@@ -148,9 +162,22 @@ export async function buildSidebar(options: SidebarOptions): Promise<{
     const directories = entries.filter(
       (entry) => entry.isDirectory() && !entry.name.startsWith("."),
     );
-    const files = entries.filter(
-      (entry) => entry.isFile() && /\.mdx?$/i.test(entry.name),
+    const rawFiles = entries.filter(
+      (entry) =>
+        entry.isFile() &&
+        /\.mdx?$/i.test(entry.name) &&
+        entry.name.toLowerCase() !== "manifest.md",
     );
+    const hasExplicitIndex = rawFiles.some((entry) =>
+      /^index\.mdx?$/i.test(entry.name),
+    );
+    let readmeKept = false;
+    const files = rawFiles.filter((entry) => {
+      if (!/^readme\.mdx?$/i.test(entry.name)) return true;
+      if (hasExplicitIndex || readmeKept) return false;
+      readmeKept = true;
+      return true;
+    });
     const items: SidebarNode[] = [];
 
     for (const directory of directories) {
@@ -168,9 +195,13 @@ export async function buildSidebar(options: SidebarOptions): Promise<{
         const indexPage = children.find(
           (item): item is SidebarPage => item.type === "page" && item.isIndex,
         );
+        const groupTitle =
+          indexPage?.title && indexPage.title !== "Overview"
+            ? indexPage.title
+            : humanize(directory.name);
         items.push({
           type: "group",
-          title: humanize(directory.name),
+          title: groupTitle,
           route: indexPage?.route || childRoute,
           source: childRelative.split("\\").join("/"),
           order: indexPage?.order,
@@ -185,14 +216,15 @@ export async function buildSidebar(options: SidebarOptions): Promise<{
       const relativeFile = relativeDirectory
         ? `${relativeDirectory}/${file.name}`
         : file.name;
-      items.push(
-        await inspectPage(
-          joinPath(directoryPath, file.name),
-          relativeFile,
-          route,
-          file.name,
-        ),
+      const page = await inspectPage(
+        joinPath(directoryPath, file.name),
+        relativeFile,
+        route,
+        file.name,
+        !hasExplicitIndex,
+        rootLevel,
       );
+      if (page) items.push(page);
     }
 
     items.sort((left, right) => compareItems(left, right, rootLevel));
