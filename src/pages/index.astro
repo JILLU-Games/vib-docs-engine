@@ -1,0 +1,37 @@
+---
+import manifest from "../generated/manifest.json";
+import CategoryTabs from "../components/hub/CategoryTabs.astro";
+import ProjectCard from "../components/hub/ProjectCard.astro";
+import HubLayout from "../layouts/HubLayout.astro";
+---
+
+<HubLayout site={manifest.site}>
+  <main id="main-content" class="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6 lg:px-8">
+    <section class="py-8" aria-labelledby="portal-title">
+      <h1 id="portal-title" class="text-xl font-semibold leading-7 tracking-normal text-[var(--text-primary)] sm:text-2xl">
+        {manifest.site.portalTitle}
+      </h1>
+      <p class="mt-1 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
+        {manifest.site.portalSubtitle}
+      </p>
+    </section>
+
+    <section class="pb-10" aria-label="Documentation projects">
+      <CategoryTabs categories={manifest.categories} />
+
+      {manifest.projects.length > 0 ? (
+        <div class="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          {manifest.projects.map((project) => <ProjectCard project={project} />)}
+        </div>
+      ) : (
+        <p class="rounded-md border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-4 py-6 text-sm text-[var(--text-muted)]">
+          No documentation projects are available yet.
+        </p>
+      )}
+
+      <p class="mt-4 text-sm text-[var(--text-muted)]" data-filter-empty hidden role="status" aria-live="polite">
+        No projects match this category.
+      </p>
+    </section>
+  </main>
+</HubLayout>

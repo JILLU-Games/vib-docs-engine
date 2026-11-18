@@ -1,0 +1,38 @@
+- generic [ref=f1e1]:
+  - link "Skip to content" [ref=f1e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f1e3]:
+    - banner [ref=f1e4]:
+      - generic [ref=f1e5]:
+        - link "Vib Tools docs home" [ref=f1e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f1e10]: Vib Tools
+          - generic [ref=f1e11]: Docs
+        - generic [ref=f1e12]:
+          - button "Search all documentation" [ref=f1e13]:
+            - generic [ref=f1e17]: Search all docs...
+            - generic [ref=f1e18]: Ctrl K
+          - navigation "External links" [ref=f1e19]:
+            - link "Vib Tools" [ref=f1e20] [cursor=pointer]:
+              - /url: https://vib.tools
+            - link "GitHub" [ref=f1e21] [cursor=pointer]:
+              - /url: https://github.com/vibtools
+          - button "Switch to dark mode" [active] [ref=f1e46]
+    - main [ref=f1e29]:
+      - region "Vib Tools Documentation" [ref=f1e30]:
+        - heading "Vib Tools Documentation" [level=1] [ref=f1e31]
+        - paragraph [ref=f1e32]: Guides and references for building with Vib Tools.
+      - region "Documentation projects" [ref=f1e33]:
+        - link "Read Operating vib-docs-engine documentation" [ref=f1e35] [cursor=pointer]:
+          - /url: /vib-docs-engine/
+          - generic [ref=f1e36]:
+            - generic [aria-hidden] [ref=f1e37]: OV
+            - generic [ref=f1e38]: Operating vib-docs-engine
+          - paragraph [ref=f1e39]: A static multi-product documentation engine.
+          - generic [ref=f1e40]:
+            - generic [ref=f1e41]: Core Engine
+            - generic [ref=f1e42]:
+              - text: Read Docs
+              - generic [aria-hidden] [ref=f1e43]: →
+    - contentinfo [ref=f1e44]:
+      - generic [ref=f1e45]: © 2026 Vib Tools

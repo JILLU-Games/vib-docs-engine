@@ -1,0 +1,18 @@
+{
+  "portalTitle": "Vib Tools Documentation",
+  "portalSubtitle": "End-user guides, setup manuals, and product tutorials.",
+  "domain": "https://docs.vib.tools",
+  "brandName": "Vib Tools",
+  "brandLogo": "/logos/vib-tools.svg",
+  "defaultAccent": "#7C3AED",
+  "navLinks": [
+    {
+      "label": "Developer Docs",
+      "href": "https://developer.vibtools.io"
+    },
+    {
+      "label": "Vib Tools",
+      "href": "https://vib.tools"
+    }
+  ]
+}

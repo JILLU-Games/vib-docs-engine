@@ -1,0 +1,186 @@
+- generic [active] [ref=f12e1]:
+  - link "Skip to content" [ref=f12e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - banner [ref=f12e3]:
+    - generic [ref=f12e4]:
+      - generic [ref=f12e5]:
+        - link "← All" [ref=f12e6] [cursor=pointer]:
+          - /url: /
+        - group [ref=f12e8]:
+          - 'generic "Switch product. Current product: Operating vib-docs-engine" [ref=f12e9] [cursor=pointer]':
+            - generic [ref=f12e10]: OV
+            - generic [ref=f12e11]: Operating vib-docs-engine
+      - generic [ref=f12e14]:
+        - button "Search Operating vib-docs-engine documentation" [ref=f12e15]:
+          - generic [ref=f12e19]: Search Operating vib-docs-engine...
+          - generic [ref=f12e20]: Ctrl K
+        - link "View repository" [ref=f12e21] [cursor=pointer]:
+          - /url: https://github.com/JILLU-Games/vib-docs-engine
+        - button "Switch to dark mode" [ref=f12e22]
+  - generic [ref=f12e25]:
+    - complementary "Operating vib-docs-engine documentation navigation" [ref=f12e26]:
+      - list [ref=f12e27]:
+        - listitem [ref=f12e28]:
+          - link "Overview" [ref=f12e29] [cursor=pointer]:
+            - /url: /vib-docs-engine/
+        - listitem [ref=f12e31]:
+          - link "Adding Projects" [ref=f12e32] [cursor=pointer]:
+            - /url: /vib-docs-engine/adding-projects/
+    - main [ref=f12e34]:
+      - article [ref=f12e35]:
+        - navigation "Breadcrumb" [ref=f12e36]:
+          - link "Docs" [ref=f12e37] [cursor=pointer]:
+            - /url: /
+          - link "Operating vib-docs-engine" [ref=f12e40] [cursor=pointer]:
+            - /url: /vib-docs-engine/
+          - generic [ref=f12e43]: Adding Projects
+        - generic [ref=f12e44]:
+          - heading "Adding Projects" [level=1] [ref=f12e45]
+          - paragraph [ref=f12e46]: A product is added through configuration and a documentation repository. The intended workflow requires no application source changes.
+          - heading "1. Prepare the source repository" [level=2] [ref=f12e47]
+          - paragraph [ref=f12e48]:
+            - text: Create a
+            - code [ref=f12e49]: docs/
+            - text: directory (or choose another path) in the repository’s configured branch. Add an
+            - code [ref=f12e50]: index.md
+            - text: "with YAML frontmatter at the very top:"
+          - figure [ref=f12e52]:
+            - code [ref=f12e54]:
+              - generic [ref=f12e55]: "---"
+              - generic [ref=f12e57]: "title: Product Name"
+              - generic [ref=f12e59]: "description: A concise description of this product."
+              - generic [ref=f12e61]: "version: \"1.2.0\""
+              - generic [ref=f12e63]: "---"
+              - generic [ref=f12e67]: "# Product Name"
+              - generic [ref=f12e71]: Start the documentation here.
+            - button "Copy to clipboard" [ref=f12e74] [cursor=pointer]
+          - paragraph [ref=f12e76]:
+            - text: The
+            - code [ref=f12e77]: title
+            - text: ","
+            - code [ref=f12e78]: description
+            - text: ", and"
+            - code [ref=f12e79]: version
+            - text: values are plain text metadata. Keep descriptions concise. Ensure YAML is valid and use a quoted value if punctuation could be interpreted as YAML syntax. Nested Markdown/MDX files become nested documentation pages.
+          - paragraph [ref=f12e80]:
+            - text: Optionally add a product logo as
+            - code [ref=f12e81]: docs/logo.svg
+            - text: or
+            - code [ref=f12e82]: docs/logo.png
+            - text: . SVG is preferred. Keep SVGs static and self-contained; the engine should validate assets and render untrusted SVGs as image files, not inject their markup into the page. If no supported logo exists, the UI generates a monogram.
+          - heading "2. Add a project record" [level=2] [ref=f12e83]
+          - paragraph [ref=f12e84]:
+            - text: Append an object to the JSON array in
+            - code [ref=f12e85]: config/projects.json
+            - text: ". Example:"
+          - figure [ref=f12e87]:
+            - code [ref=f12e89]:
+              - generic [ref=f12e90]: "{"
+              - generic [ref=f12e92]: "\"slug\": \"product-name\","
+              - generic [ref=f12e94]: "\"category\": \"Developer Tools\","
+              - generic [ref=f12e96]: "\"accentColor\": \"#22C55E\","
+              - generic [ref=f12e98]: "\"repoUrl\": \"https://git.example.com/team/product-name.git\","
+              - generic [ref=f12e100]: "\"branch\": \"main\","
+              - generic [ref=f12e102]: "\"docsPath\": \"docs\","
+              - generic [ref=f12e104]: "\"ctaLabel\": \"View repository\","
+              - generic [ref=f12e106]: "\"ctaUrl\": \"https://git.example.com/team/product-name\","
+              - generic [ref=f12e108]: "\"title\": \"Product Name\","
+              - generic [ref=f12e110]: "\"description\": \"Optional fallback if index.md has no description.\","
+              - generic [ref=f12e112]: "\"version\": \"1.2.0\""
+              - generic [ref=f12e114]: "}"
+            - button "Copy to clipboard" [ref=f12e117] [cursor=pointer]
+          - paragraph [ref=f12e119]:
+            - text: Required fields are
+            - code [ref=f12e120]: slug
+            - text: ","
+            - code [ref=f12e121]: category
+            - text: ","
+            - code [ref=f12e122]: accentColor
+            - text: ","
+            - code [ref=f12e123]: repoUrl
+            - text: ","
+            - code [ref=f12e124]: ctaLabel
+            - text: ", and"
+            - code [ref=f12e125]: ctaUrl
+            - text: .
+            - code [ref=f12e126]: branch
+            - text: defaults to
+            - code [ref=f12e127]: main
+            - text: ;
+            - code [ref=f12e128]: docsPath
+            - text: defaults to
+            - code [ref=f12e129]: docs
+            - text: .
+            - code [ref=f12e130]: title
+            - text: ","
+            - code [ref=f12e131]: description
+            - text: ", and"
+            - code [ref=f12e132]: version
+            - text: are optional fallbacks for missing frontmatter values. Prefer source frontmatter as the primary product metadata.
+          - paragraph [ref=f12e133]:
+            - text: Use a unique, URL-safe slug. Choose any category label that makes sense; category filters are derived dynamically from this file and do not require a fixed list. Use a valid CSS color for
+            - code [ref=f12e134]: accentColor
+            - text: . Repository URLs may use supported Git HTTPS or SSH transports for GitHub, GitLab, Gitea, or Forgejo. Do not place credentials in the URL. Keep
+            - code [ref=f12e135]: docsPath
+            - text: relative and inside the repository. The CTA can point to the source repository or another relevant destination.
+          - heading "3. Configure private repository access if needed" [level=2] [ref=f12e136]
+          - paragraph [ref=f12e137]:
+            - text: Public repositories need no credentials. For a private repository, configure a read-only deploy key or narrowly scoped token in the build environment and use the Git transport supported by your host. Use the deployment platform’s secret store or the server’s protected credential helper. Never commit credentials, include them in
+            - code [ref=f12e138]: repoUrl
+            - text: ", or expose them through public build variables or generated manifest data."
+          - heading "4. Configure rebuild webhooks" [level=2] [ref=f12e139]
+          - paragraph [ref=f12e140]: The Phase 2 sync-and-build scripts are in place. Configure the source host to trigger the portal’s protected build hook on pushes to the configured branch when files under the documentation path change. A full push webhook may be used if path filtering is unavailable; the sync process still fetches only the configured subtree.
+          - list [ref=f12e141]:
+            - listitem [ref=f12e142]:
+              - strong [ref=f12e143]: "Cloudflare Pages:"
+              - text: create a Pages build hook for the appropriate deployment and configure a repository webhook to call it. Restrict events to pushes where supported and protect the hook URL as a secret.
+            - listitem [ref=f12e144]:
+              - strong [ref=f12e145]: "Docker/Nginx VPS:"
+              - text: use CI or a small protected webhook receiver to validate the provider’s signature and start the build pipeline. Do not expose an unauthenticated shell endpoint. Build to a staging directory and atomically switch the served static output only after sync, validation, Astro, and Pagefind all succeed.
+          - paragraph [ref=f12e146]: For GitHub, GitLab, Gitea, and Forgejo, webhook event/signature settings differ by host. The site build itself must remain platform-neutral and use Git transport, not provider APIs.
+          - heading "5. Verify sync and the portal" [level=2] [ref=f12e147]
+          - paragraph [ref=f12e148]:
+            - text: For the current Phase 2 engine, run
+            - code [ref=f12e149]: npm run sync
+            - text: and inspect
+            - code [ref=f12e150]: src/generated/manifest.json
+            - text: ", the copied content under"
+            - code [ref=f12e151]: src/content/docs/<slug>/
+            - text: ", and any logo under"
+            - code [ref=f12e152]: public/logos/
+            - text: . Run
+            - code [ref=f12e153]: npx tsc --noEmit
+            - text: and
+            - code [ref=f12e154]: npx astro build
+            - text: to validate TypeScript and Astro configuration. UI routes are not present until later phases, so Pagefind will not have HTML pages to index yet.
+          - paragraph [ref=f12e155]:
+            - text: After the Hub and reader routes are implemented, also confirm the product appears on the Hub, category filtering behaves correctly, frontmatter/fallback metadata is used, logo or monogram renders, nested routes/sidebar/pagination are correct, the CTA and Edit link are appropriate, Pagefind includes the pages, and its
+            - code [ref=f12e156]: llms.txt
+            - text: and sitemap endpoints are generated. Inspect the built static output before publishing.
+        - region "Page actions and navigation" [ref=f12e157]:
+          - link "Edit this page on Git" [ref=f12e158] [cursor=pointer]:
+            - /url: https://github.com/JILLU-Games/vib-docs-engine/edit/main/docs/adding-projects.md
+          - navigation "Previous and next pages" [ref=f12e163]:
+            - link "Previous Overview" [ref=f12e164] [cursor=pointer]:
+              - /url: /vib-docs-engine/
+              - generic [ref=f12e165]: Previous
+              - generic [ref=f12e168]: Overview
+      - complementary "Table of contents" [ref=f12e170]:
+        - paragraph [ref=f12e171]: On This Page
+        - navigation "On this page" [ref=f12e172]:
+          - list [ref=f12e173]:
+            - listitem [ref=f12e174]:
+              - link "1. Prepare the source repository" [ref=f12e175] [cursor=pointer]:
+                - /url: "#1-prepare-the-source-repository"
+            - listitem [ref=f12e177]:
+              - link "2. Add a project record" [ref=f12e178] [cursor=pointer]:
+                - /url: "#2-add-a-project-record"
+            - listitem [ref=f12e180]:
+              - link "3. Configure private repository access if needed" [ref=f12e181] [cursor=pointer]:
+                - /url: "#3-configure-private-repository-access-if-needed"
+            - listitem [ref=f12e183]:
+              - link "4. Configure rebuild webhooks" [ref=f12e184] [cursor=pointer]:
+                - /url: "#4-configure-rebuild-webhooks"
+            - listitem [ref=f12e186]:
+              - link "5. Verify sync and the portal" [ref=f12e187] [cursor=pointer]:
+                - /url: "#5-verify-sync-and-the-portal"

@@ -1,0 +1,321 @@
+---
+import { Search, X } from "lucide-astro";
+---
+
+<div
+  class="fixed inset-0 z-[100] grid place-items-start overflow-y-auto bg-black/45 px-3 pt-[12vh] backdrop-blur-sm sm:px-6"
+  data-search-modal
+  hidden
+  aria-hidden="true"
+  data-state="closed"
+>
+  <div
+    class="search-palette w-full max-w-xl overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] shadow-2xl shadow-black/30"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="search-title"
+    aria-describedby="search-status"
+  >
+    <h2 class="sr-only" id="search-title">Search documentation</h2>
+    <div class="flex h-12 items-center gap-2 border-b border-[var(--border-hairline)] px-3">
+      <Search class="size-4 shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
+      <input
+        class="min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+        type="search"
+        placeholder="Search documentation..."
+        autocomplete="off"
+        spellcheck="false"
+        aria-label="Search documentation"
+        aria-controls="search-results"
+        data-search-input
+      />
+      <button
+        class="hidden size-7 shrink-0 place-items-center rounded text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--accent-color)]"
+        type="button"
+        aria-label="Clear search"
+        data-search-clear
+      >
+        <X class="size-3.5" aria-hidden="true" />
+      </button>
+      <kbd class="shrink-0 rounded border border-[var(--border-hairline)] px-1.5 py-0.5 font-mono text-[10px] leading-4 text-[var(--text-muted)]">ESC</kbd>
+    </div>
+
+    <div class="items-center gap-1.5 border-b border-[var(--border-hairline)] px-3 py-2" data-search-scope-bar hidden>
+      <span class="mr-1 text-[11px] text-[var(--text-muted)]">Search in</span>
+      <button class="search-scope-button" type="button" data-search-scope="product" aria-pressed="true">Current Product Only</button>
+      <button class="search-scope-button" type="button" data-search-scope="all" aria-pressed="false">All Docs</button>
+    </div>
+
+    <p class="px-4 py-5 text-xs text-[var(--text-muted)]" id="search-status" role="status" aria-live="polite" data-search-status>
+      Type to search documentation.
+    </p>
+    <ul class="max-h-[min(60vh,32rem)] overflow-y-auto py-1" id="search-results" data-search-results aria-label="Search results"></ul>
+  </div>
+</div>
+
+<style>
+  .search-palette mark {
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--accent-color) 20%, transparent);
+    color: var(--text-primary);
+  }
+
+  .search-scope-button {
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 3px 8px;
+    color: var(--text-muted);
+    font-size: 11px;
+    transition: color 120ms ease, background-color 120ms ease;
+  }
+
+  .search-scope-button:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .search-scope-button[aria-pressed="true"] {
+    border-color: color-mix(in srgb, var(--accent-color) 45%, var(--border-hairline));
+    background: color-mix(in srgb, var(--accent-color) 12%, var(--bg-surface));
+    color: var(--text-primary);
+  }
+</style>
+
+<script>
+  interface SearchDetail {
+    productSlug?: string;
+    productTitle?: string;
+  }
+
+  interface PagefindData {
+    url: string;
+    excerpt?: string;
+    meta?: Record<string, string | undefined>;
+    sub_results?: Array<{ title?: string; url: string; excerpt?: string }>;
+  }
+
+  interface PagefindResult {
+    data(): Promise<PagefindData>;
+  }
+
+  interface PagefindModule {
+    search(query: string, options?: { filters?: { product: string } }): Promise<{ results: PagefindResult[] }>;
+  }
+
+  const modal = document.querySelector<HTMLElement>("[data-search-modal]");
+  const input = modal?.querySelector<HTMLInputElement>("[data-search-input]");
+  const clearButton = modal?.querySelector<HTMLButtonElement>("[data-search-clear]");
+  const scopeBar = modal?.querySelector<HTMLElement>("[data-search-scope-bar]");
+  const status = modal?.querySelector<HTMLElement>("[data-search-status]");
+  const resultsList = modal?.querySelector<HTMLUListElement>("[data-search-results]");
+  const scopeButtons = Array.from(modal?.querySelectorAll<HTMLButtonElement>("[data-search-scope]") ?? []);
+  let pagefindPromise: Promise<PagefindModule> | undefined;
+  let scopeSlug = "";
+  let scopeTitle = "";
+  let scope = "all";
+  let lastFocusedElement: HTMLElement | null = null;
+  let originalBodyOverflow = "";
+  let searchSequence = 0;
+  let debounceTimer: number | undefined;
+  const pagefindModulePath: string = "/pagefind/pagefind.js";
+
+  function getPagefind(): Promise<PagefindModule> {
+    pagefindPromise ??= import(/* @vite-ignore */ pagefindModulePath) as Promise<PagefindModule>;
+    return pagefindPromise;
+  }
+
+  function setStatus(message: string): void {
+    if (status) status.textContent = message;
+  }
+
+  function setScope(nextScope: string): void {
+    scope = nextScope;
+    scopeButtons.forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.searchScope === scope));
+    });
+    if (input?.value.trim()) void search(input.value.trim());
+  }
+
+  function safeResultUrl(value: string): string | null {
+    try {
+      const url = new URL(value, window.location.origin);
+      return url.origin === window.location.origin ? url.href : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function appendSafeExcerpt(parent: HTMLElement, excerpt: string): void {
+    const parsed = new DOMParser().parseFromString(`<body>${excerpt}</body>`, "text/html");
+    const appendNode = (node: Node, container: HTMLElement): void => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        container.append(document.createTextNode(node.textContent ?? ""));
+        return;
+      }
+      if (node instanceof HTMLElement && node.tagName === "MARK") {
+        const mark = document.createElement("mark");
+        for (const child of Array.from(node.childNodes)) appendNode(child, mark);
+        container.append(mark);
+        return;
+      }
+      for (const child of Array.from(node.childNodes)) appendNode(child, container);
+    };
+    appendNode(parsed.body, parent);
+  }
+
+  function createResultItem(data: PagefindData): HTMLLIElement | null {
+    const href = safeResultUrl(data.url);
+    if (!href) return null;
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+    link.className = "block rounded-md px-3 py-2.5 text-inherit no-underline outline-none transition-colors hover:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)]";
+    link.href = href;
+
+    const heading = document.createElement("span");
+    heading.className = "flex items-center justify-between gap-3 text-sm font-medium text-[var(--text-primary)]";
+    const title = document.createElement("span");
+    title.className = "truncate";
+    title.textContent = data.meta?.title || decodeURIComponent(new URL(href).pathname.split("/").filter(Boolean).at(-1) || "Documentation");
+    heading.append(title);
+
+    if (scope === "all" && data.meta?.product) {
+      const productBadge = document.createElement("span");
+      productBadge.className = "shrink-0 rounded border border-[var(--border-hairline)] px-1.5 py-0.5 text-[10px] font-normal text-[var(--text-muted)]";
+      productBadge.textContent = data.meta.product;
+      heading.append(productBadge);
+    }
+    link.append(heading);
+
+    if (data.excerpt) {
+      const excerpt = document.createElement("span");
+      excerpt.className = "mt-1 block line-clamp-2 text-xs leading-5 text-[var(--text-muted)]";
+      appendSafeExcerpt(excerpt, data.excerpt);
+      link.append(excerpt);
+    }
+
+    item.append(link);
+    for (const subResult of data.sub_results ?? []) {
+      const subHref = safeResultUrl(subResult.url);
+      if (!subHref || !subResult.title) continue;
+      const subLink = document.createElement("a");
+      subLink.className = "ml-3 mt-1 flex items-center gap-2 rounded px-2 py-1 text-xs text-[var(--text-muted)] no-underline hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]";
+      subLink.href = subHref;
+      subLink.textContent = `↳ ${subResult.title}`;
+      item.append(subLink);
+    }
+
+    return item;
+  }
+
+  async function search(query: string): Promise<void> {
+    const sequence = ++searchSequence;
+    if (!resultsList || !query) {
+      if (resultsList) resultsList.replaceChildren();
+      setStatus("Type to search documentation.");
+      return;
+    }
+
+    setStatus("Searching...");
+    resultsList.replaceChildren();
+    try {
+      const pagefind = await getPagefind();
+      const options = scope === "product" && scopeSlug ? { filters: { product: scopeSlug } } : undefined;
+      const response = await pagefind.search(query, options);
+      const results = await Promise.all(response.results.map((result) => result.data()));
+      if (sequence !== searchSequence || modal?.hidden) return;
+      const items = results.map(createResultItem).filter((item): item is HTMLLIElement => item !== null);
+      resultsList.replaceChildren(...items);
+      setStatus(items.length ? `${items.length} result${items.length === 1 ? "" : "s"}` : "No matching documentation found.");
+    } catch {
+      if (sequence !== searchSequence) return;
+      setStatus("Search index is generated during production build (npm run build).");
+    }
+  }
+
+  function scheduleSearch(): void {
+    window.clearTimeout(debounceTimer);
+    if (clearButton) clearButton.style.display = input?.value ? "grid" : "none";
+    debounceTimer = window.setTimeout(() => {
+      if (input) void search(input.value.trim());
+    }, 140);
+  }
+
+  async function openModal(detail: SearchDetail = {}): Promise<void> {
+    if (!modal || !input) return;
+    const context = document.querySelector<HTMLElement>("[data-search-context]");
+    scopeSlug = detail.productSlug || context?.dataset.productSlug || "";
+    scopeTitle = detail.productTitle || context?.dataset.productTitle || "";
+    scope = scopeSlug ? "product" : "all";
+    if (scopeBar) scopeBar.hidden = !scopeSlug;
+    input.placeholder = scopeTitle ? `Search ${scopeTitle}...` : "Search all documentation...";
+    scopeButtons.forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.searchScope === scope));
+    });
+    lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    originalBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    modal.hidden = false;
+    modal.setAttribute("aria-hidden", "false");
+    modal.dataset.state = "open";
+    input.focus();
+    try {
+      await getPagefind();
+      setStatus(input.value.trim() ? "Searching..." : "Type to search documentation.");
+      if (input.value.trim()) void search(input.value.trim());
+    } catch {
+      setStatus("Search index is generated during production build (npm run build).");
+    }
+  }
+
+  function closeModal(): void {
+    const activeModal = modal;
+    if (!activeModal || activeModal.hidden) return;
+    activeModal.hidden = true;
+    activeModal.setAttribute("aria-hidden", "true");
+    activeModal.dataset.state = "closed";
+    document.body.style.overflow = originalBodyOverflow;
+    resultsList?.replaceChildren();
+    if (lastFocusedElement?.isConnected) lastFocusedElement.focus();
+  }
+
+  window.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      const context = document.querySelector<HTMLElement>("[data-search-context]");
+      void openModal({ productSlug: context?.dataset.productSlug, productTitle: context?.dataset.productTitle });
+    } else if (event.key === "Escape" && modal && !modal.hidden) {
+      closeModal();
+    } else if (event.key === "Tab" && modal && !modal.hidden) {
+      const focusable = Array.from(modal.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled]), a[href]"))
+        .filter((element) => element.getClientRects().length > 0);
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+  });
+
+  window.addEventListener("vib:open-search", (event) => {
+    const detail = (event as CustomEvent<SearchDetail | null>).detail ?? {};
+    void openModal(detail);
+  });
+
+  modal?.addEventListener("click", (event) => {
+    if (event.target === modal) closeModal();
+  });
+  input?.addEventListener("input", scheduleSearch);
+  clearButton?.addEventListener("click", () => {
+    if (!input) return;
+    input.value = "";
+    input.focus();
+    scheduleSearch();
+  });
+  scopeButtons.forEach((button) => {
+    button.addEventListener("click", () => setScope(button.dataset.searchScope ?? "all"));
+  });
+</script>

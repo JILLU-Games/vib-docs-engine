@@ -1,0 +1,18 @@
+{
+  "portalTitle": "Vib Tools Developer Hub",
+  "portalSubtitle": "SDKs, open-source engines, self-hosted infrastructure, and API references.",
+  "domain": "https://developer.vibtools.io",
+  "brandName": "Vib Tools",
+  "brandLogo": "/logos/vib-tools.svg",
+  "defaultAccent": "#2563EB",
+  "navLinks": [
+    {
+      "label": "User Docs",
+      "href": "https://docs.vib.tools"
+    },
+    {
+      "label": "GitHub",
+      "href": "https://github.com/vibtoolshq"
+    }
+  ]
+}

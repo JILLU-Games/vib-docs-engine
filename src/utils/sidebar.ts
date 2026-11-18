@@ -1,0 +1,221 @@
+/**
+ * Build a deterministic navigation tree and pagination order from Markdown files.
+ * Dependencies are injected so this JavaScript-compatible TypeScript module can
+ * be shared by the Node sync script and Astro build-time code.
+ */
+type DirectoryEntry = {
+  name: string;
+  isDirectory(): boolean;
+  isFile(): boolean;
+};
+
+type SidebarPage = {
+  type: "page";
+  title: string;
+  route: string;
+  source: string;
+  order?: number;
+  numericPrefix?: string;
+  isIndex: boolean;
+};
+
+type SidebarGroup = {
+  type: "group";
+  title: string;
+  route: string;
+  source: string;
+  order?: number;
+  numericPrefix?: string;
+  children: SidebarNode[];
+  isIndex: false;
+};
+
+type SidebarNode = SidebarPage | SidebarGroup;
+type FlatPage = Pick<SidebarPage, "title" | "route" | "source" | "order">;
+
+type SidebarOptions = {
+  docsRoot: string;
+  projectSlug: string;
+  readDirectory: (directory: string) => Promise<DirectoryEntry[]>;
+  readTextFile: (filePath: string) => Promise<string>;
+  parseFrontmatter: (source: string) => Record<string, unknown>;
+  joinPath: (...segments: string[]) => string;
+};
+
+export async function buildSidebar(options: SidebarOptions): Promise<{
+  sidebar: SidebarNode[];
+  flatPages: FlatPage[];
+}> {
+  const {
+    docsRoot,
+    projectSlug,
+    readDirectory,
+    readTextFile,
+    parseFrontmatter,
+    joinPath,
+  } = options;
+  const seenRoutes = new Set();
+
+  function cleanSegment(value: string): string {
+    const stripped = value.replace(/^\d+[-_.\s]+/, "");
+    const normalized = stripped
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (!normalized)
+      throw new Error(`Cannot create a route segment from "${value}"`);
+    return normalized;
+  }
+
+  function humanize(value: string): string {
+    const stripped = value.replace(/^\d+[-_.\s]+/, "");
+    const words = stripped.replace(/[-_]+/g, " ").trim();
+    if (!words || words.toLowerCase() === "index") return "Overview";
+    return words.replace(/\b[a-z]/g, (letter: string) => letter.toUpperCase());
+  }
+
+  async function inspectPage(
+    filePath: string,
+    relativeFile: string,
+    directoryRoute: string,
+    filename: string,
+  ): Promise<SidebarPage> {
+    const source = await readTextFile(filePath);
+    const data = parseFrontmatter(source);
+    const extension = filename.toLowerCase().endsWith(".mdx") ? 4 : 3;
+    const stem = filename.slice(0, -extension);
+    const isIndex = stem.toLowerCase() === "index";
+    const routeSegment = isIndex ? "" : `${cleanSegment(stem)}/`;
+    const route = `${directoryRoute}${routeSegment}` || `/${projectSlug}/`;
+    if (seenRoutes.has(route)) throw new Error(`Route collision at ${route}`);
+    seenRoutes.add(route);
+
+    if (data.title !== undefined && typeof data.title !== "string") {
+      throw new Error(`Frontmatter title in ${relativeFile} must be a string`);
+    }
+    const orderValue =
+      data.order === undefined ? undefined : Number(data.order);
+    if (orderValue !== undefined && !Number.isFinite(orderValue)) {
+      throw new Error(`Frontmatter order in ${relativeFile} must be a number`);
+    }
+
+    return {
+      type: "page",
+      title: data.title?.trim() || humanize(stem),
+      route,
+      source: relativeFile.split("\\").join("/"),
+      order: orderValue,
+      numericPrefix: /^\s*(\d+)/.exec(filename)?.[1],
+      isIndex,
+    };
+  }
+
+  function compareItems(
+    left: SidebarNode,
+    right: SidebarNode,
+    rootLevel: boolean,
+  ): number {
+    if (rootLevel && left.isIndex !== right.isIndex)
+      return left.isIndex ? -1 : 1;
+    if (left.order !== right.order) {
+      if (left.order === undefined) return 1;
+      if (right.order === undefined) return -1;
+      return left.order - right.order;
+    }
+    const leftPrefix =
+      left.numericPrefix === undefined
+        ? Number.POSITIVE_INFINITY
+        : Number(left.numericPrefix);
+    const rightPrefix =
+      right.numericPrefix === undefined
+        ? Number.POSITIVE_INFINITY
+        : Number(right.numericPrefix);
+    if (leftPrefix !== rightPrefix) return leftPrefix - rightPrefix;
+    return left.title.localeCompare(right.title, undefined, {
+      sensitivity: "base",
+    });
+  }
+
+  async function walk(
+    directoryPath: string,
+    relativeDirectory: string,
+    route: string,
+    rootLevel = false,
+  ): Promise<SidebarNode[]> {
+    const entries = await readDirectory(directoryPath);
+    const directories = entries.filter(
+      (entry) => entry.isDirectory() && !entry.name.startsWith("."),
+    );
+    const files = entries.filter(
+      (entry) => entry.isFile() && /\.mdx?$/i.test(entry.name),
+    );
+    const items: SidebarNode[] = [];
+
+    for (const directory of directories) {
+      const segment = cleanSegment(directory.name);
+      const childRoute = `${route}${segment}/`;
+      const childRelative = relativeDirectory
+        ? `${relativeDirectory}/${directory.name}`
+        : directory.name;
+      const children: SidebarNode[] = await walk(
+        joinPath(directoryPath, directory.name),
+        childRelative,
+        childRoute,
+      );
+      if (children.length) {
+        const indexPage = children.find(
+          (item): item is SidebarPage => item.type === "page" && item.isIndex,
+        );
+        items.push({
+          type: "group",
+          title: humanize(directory.name),
+          route: indexPage?.route || childRoute,
+          source: childRelative.split("\\").join("/"),
+          order: indexPage?.order,
+          numericPrefix: /^\s*(\d+)/.exec(directory.name)?.[1],
+          children,
+          isIndex: false,
+        });
+      }
+    }
+
+    for (const file of files) {
+      const relativeFile = relativeDirectory
+        ? `${relativeDirectory}/${file.name}`
+        : file.name;
+      items.push(
+        await inspectPage(
+          joinPath(directoryPath, file.name),
+          relativeFile,
+          route,
+          file.name,
+        ),
+      );
+    }
+
+    items.sort((left, right) => compareItems(left, right, rootLevel));
+    return items;
+  }
+
+  const sidebar = await walk(docsRoot, "", `/${projectSlug}/`, true);
+  const flatPages: FlatPage[] = [];
+  function flatten(items: SidebarNode[]): void {
+    for (const item of items) {
+      if (item.type === "page") {
+        flatPages.push({
+          title: item.title,
+          route: item.route,
+          source: item.source,
+          order: item.order,
+        });
+      } else {
+        flatten(item.children);
+      }
+    }
+  }
+  flatten(sidebar);
+
+  return { sidebar, flatPages };
+}

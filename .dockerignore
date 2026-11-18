@@ -1,0 +1,15 @@
+.git
+.astro
+.playwright-mcp
+artifacts
+node_modules
+dist
+.env
+.env.*
+!.env.example
+src/content/docs/*
+!src/content/docs/.gitkeep
+src/generated/*
+!src/generated/.gitkeep
+public/logos/*
+!public/logos/.gitkeep

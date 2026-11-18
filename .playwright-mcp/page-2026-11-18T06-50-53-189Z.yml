@@ -1,0 +1,260 @@
+- generic [active] [ref=f17e1]:
+  - link "Skip to content" [ref=f17e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f17e3]:
+    - banner [ref=f17e4]:
+      - generic [ref=f17e5]:
+        - generic [ref=f17e6]:
+          - link "← All" [ref=f17e7] [cursor=pointer]:
+            - /url: /
+          - group [ref=f17e9]:
+            - 'generic "Switch product. Current product: Operating vib-docs-engine" [ref=f17e10] [cursor=pointer]':
+              - generic [ref=f17e11]: OV
+              - generic [ref=f17e12]: Operating vib-docs-engine
+        - generic [ref=f17e15]:
+          - button "Search Operating vib-docs-engine documentation" [ref=f17e16]:
+            - generic [ref=f17e20]: Search Operating vib-docs-engine...
+            - generic [ref=f17e21]: Ctrl K
+          - link "View repository" [ref=f17e22] [cursor=pointer]:
+            - /url: https://github.com/JILLU-Games/vib-docs-engine
+          - button "Switch to dark mode" [ref=f17e23]
+    - generic [ref=f17e26]:
+      - complementary "Operating vib-docs-engine documentation navigation" [ref=f17e27]:
+        - list [ref=f17e28]:
+          - listitem [ref=f17e29]:
+            - link "Overview" [ref=f17e30] [cursor=pointer]:
+              - /url: /vib-docs-engine/
+          - listitem [ref=f17e32]:
+            - link "Adding Projects" [ref=f17e33] [cursor=pointer]:
+              - /url: /vib-docs-engine/adding-projects/
+      - main [ref=f17e35]:
+        - navigation "Breadcrumb" [ref=f17e36]:
+          - link "Docs" [ref=f17e37] [cursor=pointer]:
+            - /url: /
+          - link "Operating vib-docs-engine" [ref=f17e40] [cursor=pointer]:
+            - /url: /vib-docs-engine/
+          - generic [ref=f17e43]: Adding Projects
+        - generic [ref=f17e44]:
+          - article [ref=f17e45]:
+            - heading "Adding Projects" [level=1] [ref=f17e46]
+            - paragraph [ref=f17e47]: A product is added through configuration and a documentation repository. The intended workflow requires no application source changes.
+            - heading "1. Prepare the source repository" [level=2] [ref=f17e48]
+            - paragraph [ref=f17e49]:
+              - text: Create a
+              - code [ref=f17e50]: docs/
+              - text: directory (or choose another path) in the repository’s configured branch. Add an
+              - code [ref=f17e51]: index.md
+              - text: "with YAML frontmatter at the very top:"
+            - figure [ref=f17e53]:
+              - code [ref=f17e55]:
+                - generic [ref=f17e56]: "---"
+                - generic [ref=f17e58]: "title: Product Name"
+                - generic [ref=f17e60]: "description: A concise description of this product."
+                - generic [ref=f17e62]: "version: \"1.2.0\""
+                - generic [ref=f17e64]: "---"
+                - generic [ref=f17e68]: "# Product Name"
+                - generic [ref=f17e72]: Start the documentation here.
+              - button "Copy to clipboard" [ref=f17e75] [cursor=pointer]
+            - paragraph [ref=f17e77]:
+              - text: The
+              - code [ref=f17e78]: title
+              - text: ","
+              - code [ref=f17e79]: description
+              - text: ", and"
+              - code [ref=f17e80]: version
+              - text: values are plain text metadata. Keep descriptions concise. Ensure YAML is valid and use a quoted value if punctuation could be interpreted as YAML syntax. Nested Markdown/MDX files become nested documentation pages.
+            - paragraph [ref=f17e81]:
+              - text: Optionally add a product logo as
+              - code [ref=f17e82]: docs/logo.svg
+              - text: or
+              - code [ref=f17e83]: docs/logo.png
+              - text: . SVG is preferred. Keep SVGs static and self-contained; the engine should validate assets and render untrusted SVGs as image files, not inject their markup into the page. If no supported logo exists, the UI generates a monogram.
+            - heading "2. Add a project record" [level=2] [ref=f17e84]
+            - paragraph [ref=f17e85]:
+              - text: Append an object to the JSON array in
+              - code [ref=f17e86]: config/projects.json
+              - text: ". Example:"
+            - figure [ref=f17e88]:
+              - code [ref=f17e90]:
+                - generic [ref=f17e91]: "{"
+                - generic [ref=f17e93]: "\"slug\": \"product-name\","
+                - generic [ref=f17e95]: "\"category\": \"Developer Tools\","
+                - generic [ref=f17e97]: "\"accentColor\": \"#22C55E\","
+                - generic [ref=f17e99]: "\"repoUrl\": \"https://git.example.com/team/product-name.git\","
+                - generic [ref=f17e101]: "\"branch\": \"main\","
+                - generic [ref=f17e103]: "\"docsPath\": \"docs\","
+                - generic [ref=f17e105]: "\"ctaLabel\": \"View repository\","
+                - generic [ref=f17e107]: "\"ctaUrl\": \"https://git.example.com/team/product-name\","
+                - generic [ref=f17e109]: "\"title\": \"Product Name\","
+                - generic [ref=f17e111]: "\"description\": \"Optional fallback if index.md has no description.\","
+                - generic [ref=f17e113]: "\"version\": \"1.2.0\""
+                - generic [ref=f17e115]: "}"
+              - button "Copy to clipboard" [ref=f17e118] [cursor=pointer]
+            - paragraph [ref=f17e120]:
+              - text: Required fields are
+              - code [ref=f17e121]: slug
+              - text: ","
+              - code [ref=f17e122]: category
+              - text: ","
+              - code [ref=f17e123]: accentColor
+              - text: ","
+              - code [ref=f17e124]: repoUrl
+              - text: ","
+              - code [ref=f17e125]: ctaLabel
+              - text: ", and"
+              - code [ref=f17e126]: ctaUrl
+              - text: .
+              - code [ref=f17e127]: branch
+              - text: defaults to
+              - code [ref=f17e128]: main
+              - text: ;
+              - code [ref=f17e129]: docsPath
+              - text: defaults to
+              - code [ref=f17e130]: docs
+              - text: .
+              - code [ref=f17e131]: title
+              - text: ","
+              - code [ref=f17e132]: description
+              - text: ", and"
+              - code [ref=f17e133]: version
+              - text: are optional fallbacks for missing frontmatter values. Prefer source frontmatter as the primary product metadata.
+            - paragraph [ref=f17e134]:
+              - text: Use a unique, URL-safe slug. Choose any category label that makes sense; category filters are derived dynamically from this file and do not require a fixed list. Use a valid CSS color for
+              - code [ref=f17e135]: accentColor
+              - text: . Repository URLs may use supported Git HTTPS or SSH transports for GitHub, GitLab, Gitea, or Forgejo. Do not place credentials in the URL. Keep
+              - code [ref=f17e136]: docsPath
+              - text: relative and inside the repository. The CTA can point to the source repository or another relevant destination.
+            - heading "3. Configure private repository access if needed" [level=2] [ref=f17e137]
+            - paragraph [ref=f17e138]:
+              - text: Public repositories need no credentials. For a private repository, configure a read-only deploy key or narrowly scoped token in the build environment and use the Git transport supported by your host. Use the deployment platform’s secret store or the server’s protected credential helper. Never commit credentials, include them in
+              - code [ref=f17e139]: repoUrl
+              - text: ", or expose them through public build variables or generated manifest data."
+            - heading "4. Configure rebuild webhooks" [level=2] [ref=f17e140]
+            - paragraph [ref=f17e141]: The Phase 2 sync-and-build scripts are in place. Configure the source host to trigger the portal’s protected build hook on pushes to the configured branch when files under the documentation path change. A full push webhook may be used if path filtering is unavailable; the sync process still fetches only the configured subtree.
+            - list [ref=f17e142]:
+              - listitem [ref=f17e143]:
+                - strong [ref=f17e144]: "Cloudflare Pages:"
+                - text: create a Pages build hook for the appropriate deployment and configure a repository webhook to call it. Restrict events to pushes where supported and protect the hook URL as a secret.
+              - listitem [ref=f17e145]:
+                - strong [ref=f17e146]: "Docker/Nginx VPS:"
+                - text: use CI or a small protected webhook receiver to validate the provider’s signature and start the build pipeline. Do not expose an unauthenticated shell endpoint. Build to a staging directory and atomically switch the served static output only after sync, validation, Astro, and Pagefind all succeed.
+            - paragraph [ref=f17e147]: For GitHub, GitLab, Gitea, and Forgejo, webhook event/signature settings differ by host. The site build itself must remain platform-neutral and use Git transport, not provider APIs.
+            - heading "5. Verify sync and the portal" [level=2] [ref=f17e148]
+            - paragraph [ref=f17e149]:
+              - text: Run
+              - code [ref=f17e150]: npm run sync
+              - text: ", then"
+              - code [ref=f17e151]: npm run build
+              - text: . Confirm the product appears on the Hub, metadata/fallbacks and logo/monogram are correct, nested routes/sidebar/pagination and the Edit link are valid, and Pagefind indexes the docs article body. On a product page,
+              - code [ref=f17e152]: Ctrl+K
+              - text: should search that product by default; switch to “All Docs” to search every product. On the Hub,
+              - code [ref=f17e153]: Ctrl+K
+              - text: searches globally. Check
+              - code [ref=f17e154]: /llms.txt
+              - text: ","
+              - code [ref=f17e155]: /<slug>/llms.txt
+              - text: ","
+              - code [ref=f17e156]: /robots.txt
+              - text: ","
+              - code [ref=f17e157]: /sitemap-index.xml
+              - text: ", and an unknown path for the 404 page."
+            - paragraph [ref=f17e158]:
+              - text: Use
+              - code [ref=f17e159]: npm run preview
+              - text: to inspect the built static portal locally. For VPS testing, build with
+              - code [ref=f17e160]: docker buildx build --secret id=git_token,env=GIT_TOKEN -t vib-docs-engine .
+              - text: when private Git access is required, then run
+              - code [ref=f17e161]: docker run --rm -p 8080:80 vib-docs-engine
+              - text: . Inspect the static output before publishing.
+            - heading "6. Use the project CLI" [level=2] [ref=f17e162]
+            - paragraph [ref=f17e163]:
+              - text: Run
+              - code [ref=f17e164]: npm run add-project
+              - text: from the engine repository. The CLI validates a unique lowercase slug, shows configured categories as suggestions, accepts a Git HTTPS/SSH remote or a local docs path for testing, and prompts for branch, accent, and optional CTA details. It writes the entry to
+              - code [ref=f17e165]: config/projects.json
+              - text: without changing application source. For local paths, keep the entry temporary and remove
+              - code [ref=f17e166]: localPath
+              - text: before committing a production configuration.
+            - paragraph [ref=f17e167]:
+              - text: "After the prompt completes, follow the printed next step: run"
+              - code [ref=f17e168]: npm run build
+              - text: locally, or commit and push the config change to trigger the portal’s connected deployment.
+            - heading "7. Select a portal preset" [level=2] [ref=f17e169]
+            - paragraph [ref=f17e170]: "The engine includes paired starter configs:"
+            - list [ref=f17e171]:
+              - listitem [ref=f17e172]:
+                - code [ref=f17e173]: config/presets/user-portal/
+                - text: for
+                - code [ref=f17e174]: docs.vib.tools
+                - text: .
+              - listitem [ref=f17e175]:
+                - code [ref=f17e176]: config/presets/dev-portal/
+                - text: for
+                - code [ref=f17e177]: developer.vibtools.io
+                - text: .
+            - paragraph [ref=f17e178]:
+              - text: For each deployment repository, copy both files from exactly one preset into
+              - code [ref=f17e179]: config/site.config.json
+              - text: and
+              - code [ref=f17e180]: config/projects.json
+              - text: . Do not mix the site config from one preset with the product registry from the other. Replace the sample
+              - code [ref=f17e181]: YOUR_ORG
+              - text: repository URLs with real docs repositories before deploying, and keep each portal’s product list isolated.
+            - heading "8. Automate rebuilds from product repositories" [level=2] [ref=f17e182]
+            - paragraph [ref=f17e183]:
+              - text: For GitHub, copy
+              - code [ref=f17e184]: templates/github-notify-docs.yml
+              - text: into the product repository at
+              - code [ref=f17e185]: .github/workflows/notify-docs.yml
+              - text: . Create a repository Actions secret named
+              - code [ref=f17e186]: DOCS_DEPLOY_HOOK_URL
+              - text: with the protected build-hook URL for the correct portal. The workflow runs on pushes to
+              - code [ref=f17e187]: main
+              - text: that change
+              - code [ref=f17e188]: docs/**
+              - text: and sends a POST request without printing the secret.
+            - paragraph [ref=f17e189]:
+              - text: For GitLab, Gitea/Forgejo, or a VPS webhook receiver, use
+              - code [ref=f17e190]: templates/webhook-trigger.sh
+              - text: as the curl request body/script and configure
+              - code [ref=f17e191]: DOCS_DEPLOY_HOOK_URL
+              - text: as a protected secret variable. The receiver must validate the host’s webhook signature, rate-limit requests, and enqueue a build; never expose an unauthenticated shell endpoint.
+            - paragraph [ref=f17e192]:
+              - link "Phase 6 external link test" [ref=f17e193] [cursor=pointer]:
+                - /url: https://example.com/phase6-link-test
+          - region "Page actions and navigation" [ref=f17e194]:
+            - link "Edit this page on Git" [ref=f17e195] [cursor=pointer]:
+              - /url: https://github.com/JILLU-Games/vib-docs-engine/edit/main/docs/adding-projects.md
+            - navigation "Previous and next pages" [ref=f17e200]:
+              - link "Previous Overview" [ref=f17e201] [cursor=pointer]:
+                - /url: /vib-docs-engine/
+                - generic [ref=f17e202]: Previous
+                - generic [ref=f17e204]: Overview
+        - complementary "Table of contents" [ref=f17e206]:
+          - paragraph [ref=f17e207]: On This Page
+          - navigation "On this page" [ref=f17e208]:
+            - list [ref=f17e209]:
+              - listitem [ref=f17e210]:
+                - link "1. Prepare the source repository" [ref=f17e211] [cursor=pointer]:
+                  - /url: "#1-prepare-the-source-repository"
+              - listitem [ref=f17e213]:
+                - link "2. Add a project record" [ref=f17e214] [cursor=pointer]:
+                  - /url: "#2-add-a-project-record"
+              - listitem [ref=f17e216]:
+                - link "3. Configure private repository access if needed" [ref=f17e217] [cursor=pointer]:
+                  - /url: "#3-configure-private-repository-access-if-needed"
+              - listitem [ref=f17e219]:
+                - link "4. Configure rebuild webhooks" [ref=f17e220] [cursor=pointer]:
+                  - /url: "#4-configure-rebuild-webhooks"
+              - listitem [ref=f17e222]:
+                - link "5. Verify sync and the portal" [ref=f17e223] [cursor=pointer]:
+                  - /url: "#5-verify-sync-and-the-portal"
+              - listitem [ref=f17e225]:
+                - link "6. Use the project CLI" [ref=f17e226] [cursor=pointer]:
+                  - /url: "#6-use-the-project-cli"
+              - listitem [ref=f17e228]:
+                - link "7. Select a portal preset" [ref=f17e229] [cursor=pointer]:
+                  - /url: "#7-select-a-portal-preset"
+              - listitem [ref=f17e231]:
+                - link "8. Automate rebuilds from product repositories" [ref=f17e232] [cursor=pointer]:
+                  - /url: "#8-automate-rebuilds-from-product-repositories"

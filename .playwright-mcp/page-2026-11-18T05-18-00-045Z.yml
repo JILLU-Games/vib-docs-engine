@@ -1,0 +1,30 @@
+- generic [active] [ref=f3e1]:
+  - link "Skip to content" [ref=f3e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f3e3]:
+    - banner [ref=f3e4]:
+      - generic [ref=f3e5]:
+        - link "Vib Tools docs home" [ref=f3e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f3e10]: Vib Tools
+        - generic [ref=f3e11]:
+          - button "Search all documentation" [ref=f3e12]
+          - button "Switch to dark mode" [ref=f3e16]
+    - main [ref=f3e19]:
+      - region "Vib Tools Documentation" [ref=f3e20]:
+        - heading "Vib Tools Documentation" [level=1] [ref=f3e21]
+        - paragraph [ref=f3e22]: Guides and references for building with Vib Tools.
+      - region "Documentation projects" [ref=f3e23]:
+        - link "Read Operating vib-docs-engine documentation" [ref=f3e25] [cursor=pointer]:
+          - /url: /vib-docs-engine/
+          - generic [ref=f3e26]:
+            - generic [aria-hidden] [ref=f3e27]: OV
+            - generic [ref=f3e28]: Operating vib-docs-engine
+          - paragraph [ref=f3e29]: A static multi-product documentation engine.
+          - generic [ref=f3e30]:
+            - generic [ref=f3e31]: Core Engine
+            - generic [ref=f3e32]:
+              - text: Read Docs
+              - generic [aria-hidden] [ref=f3e33]: →
+    - contentinfo [ref=f3e34]:
+      - generic [ref=f3e35]: © 2026 Vib Tools

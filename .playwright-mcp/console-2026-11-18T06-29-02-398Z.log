@@ -1,0 +1,5 @@
+[     131ms] [LOG] %c Console Ninja extension is connected to Vite, background: rgb(30,30,30); color: rgb(255,213,92) see https://tinyurl.com/2vt8jxzw for more info. @ :1
+[   11406ms] TypeError: Cannot read properties of null (reading 'productSlug')
+    at w (http://127.0.0.1:4321/_astro/SearchModal.astro_astro_type_script_index_0_lang.BAhCRiv8.js:1:3278)
+    at http://127.0.0.1:4321/_astro/SearchModal.astro_astro_type_script_index_0_lang.BAhCRiv8.js:1:4797
+    at HTMLButtonElement.<anonymous> (http://127.0.0.1:4321/:12:11285)

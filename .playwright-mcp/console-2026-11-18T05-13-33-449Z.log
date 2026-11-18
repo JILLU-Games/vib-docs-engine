@@ -1,0 +1,2 @@
+[     472ms] [LOG] %c Console Ninja extension is connected to Vite, background: rgb(30,30,30); color: rgb(255,213,92) see https://tinyurl.com/2vt8jxzw for more info. @ :1
+[    1136ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:4321/favicon.ico:1

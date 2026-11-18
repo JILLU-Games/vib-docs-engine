@@ -1,0 +1,69 @@
+---
+import siteConfig from "../../config/site.config.json";
+import SearchModal from "../components/ui/SearchModal.astro";
+import "../styles/global.css";
+import { resolveAccentColor } from "../utils/theme";
+
+interface Props {
+  title: string;
+  description?: string;
+  accentColor?: string;
+  canonicalPath?: string;
+}
+
+const {
+  title,
+  description = siteConfig.portalSubtitle,
+  accentColor,
+  canonicalPath,
+} = Astro.props;
+const pageTitle = title === siteConfig.portalTitle
+  ? title
+  : `${title} | ${siteConfig.portalTitle}`;
+const canonicalUrl = new URL(canonicalPath ?? Astro.url.pathname, siteConfig.domain).href;
+const resolvedAccent = resolveAccentColor(accentColor, siteConfig.defaultAccent);
+---
+
+<!doctype html>
+<html lang="en" style={`--accent-color: ${resolvedAccent};`}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content={siteConfig.defaultAccent} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={siteConfig.brandName} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <title>{pageTitle}</title>
+    <script is:inline>
+      (() => {
+        let theme = "dark";
+        try {
+          const savedTheme = localStorage.getItem("theme");
+          if (savedTheme === "light" || savedTheme === "dark") theme = savedTheme;
+        } catch {}
+        document.documentElement.classList.toggle("dark", theme === "dark");
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="sr-only fixed left-3 top-3 z-50 rounded border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 py-2 text-[var(--text-primary)] focus:not-sr-only" href="#main-content">Skip to content</a>
+    <slot />
+    <SearchModal />
+  </body>
+</html>

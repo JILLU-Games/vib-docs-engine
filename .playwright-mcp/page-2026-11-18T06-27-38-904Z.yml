@@ -1,0 +1,178 @@
+- generic [active] [ref=f13e1]:
+  - link "Skip to content" [ref=f13e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f13e3]:
+    - banner [ref=f13e4]:
+      - generic [ref=f13e5]:
+        - generic [ref=f13e6]:
+          - link "← All" [ref=f13e7] [cursor=pointer]:
+            - /url: /
+          - group [ref=f13e9]:
+            - 'generic "Switch product. Current product: Operating vib-docs-engine" [ref=f13e10] [cursor=pointer]':
+              - generic [ref=f13e11]: OV
+              - generic [ref=f13e12]: Operating vib-docs-engine
+        - generic [ref=f13e15]:
+          - button "Search Operating vib-docs-engine documentation" [ref=f13e16]:
+            - generic [ref=f13e20]: Search Operating vib-docs-engine...
+            - generic [ref=f13e21]: Ctrl K
+          - link "View repository" [ref=f13e22] [cursor=pointer]:
+            - /url: https://github.com/JILLU-Games/vib-docs-engine
+          - button "Switch to dark mode" [ref=f13e23]
+    - generic [ref=f13e26]:
+      - complementary "Operating vib-docs-engine documentation navigation" [ref=f13e27]:
+        - list [ref=f13e28]:
+          - listitem [ref=f13e29]:
+            - link "Overview" [ref=f13e30] [cursor=pointer]:
+              - /url: /vib-docs-engine/
+          - listitem [ref=f13e32]:
+            - link "Adding Projects" [ref=f13e33] [cursor=pointer]:
+              - /url: /vib-docs-engine/adding-projects/
+      - main [ref=f13e35]:
+        - navigation "Breadcrumb" [ref=f13e36]:
+          - link "Docs" [ref=f13e37] [cursor=pointer]:
+            - /url: /
+          - link "Operating vib-docs-engine" [ref=f13e40] [cursor=pointer]:
+            - /url: /vib-docs-engine/
+          - generic [ref=f13e43]: Operating vib-docs-engine
+        - generic [ref=f13e44]:
+          - article [ref=f13e45]:
+            - heading "Operating vib-docs-engine" [level=1] [ref=f13e46]
+            - paragraph [ref=f13e47]:
+              - code [ref=f13e48]: vib-docs-engine
+              - text: builds static documentation portals for multiple products. Configuration selects the portal identity and product repositories. During a build, the engine fetches only configured documentation directories with Git sparse checkout, validates and normalizes content, generates a manifest/sidebar tree, and then builds Astro static pages and a local Pagefind search index.
+            - paragraph [ref=f13e49]:
+              - text: The engine includes the Astro/Tailwind configuration, Content Collection schema, Git sync/manifest engine, Hub, three-column docs reader, Pagefind search, sitemap, robots, and AI-readable
+              - code [ref=f13e50]: llms.txt
+              - text: endpoints. The production build prerenders the configured portal to static files; the browser does not call Git or documentation APIs.
+            - heading "Prerequisites for the implemented engine" [level=2] [ref=f13e51]
+            - list [ref=f13e52]:
+              - listitem [ref=f13e53]: A Node.js release supported by the installed Astro version and npm.
+              - listitem [ref=f13e54]: Git with sparse-checkout support (Git 2.25 or newer).
+              - listitem [ref=f13e55]: Network access to the configured source repositories; credentials only when private repositories require them.
+            - heading "Local workflow" [level=2] [ref=f13e56]
+            - list [ref=f13e57]:
+              - listitem [ref=f13e58]:
+                - text: Install dependencies using
+                - code [ref=f13e59]: npm install
+                - text: (or
+                - code [ref=f13e60]: npm ci
+                - text: from the lockfile in CI).
+              - listitem [ref=f13e61]:
+                - text: Set
+                - code [ref=f13e62]: GIT_TOKEN
+                - text: in the process environment or deployment secret store when private HTTPS repositories require it. Set
+                - code [ref=f13e63]: GIT_USERNAME
+                - text: only when the Git host requires a different token username. Never commit credentials or put them in public build variables.
+              - listitem [ref=f13e64]:
+                - text: Run
+                - code [ref=f13e65]: npm run sync
+                - text: to synchronize docs and regenerate
+                - code [ref=f13e66]: src/generated/manifest.json
+                - text: .
+              - listitem [ref=f13e67]:
+                - text: Run
+                - code [ref=f13e68]: npm run dev
+                - text: to sync automatically, then start Astro’s development server.
+              - listitem [ref=f13e69]:
+                - text: Run
+                - code [ref=f13e70]: npm run build
+                - text: to sync, build Astro, and run Pagefind.
+                - code [ref=f13e71]: npm run preview
+                - text: previews an existing Astro build.
+            - paragraph [ref=f13e72]:
+              - text: The
+              - code [ref=f13e73]: predev
+              - text: and
+              - code [ref=f13e74]: prebuild
+              - text: lifecycle hooks run the sync script automatically.
+              - code [ref=f13e75]: localPath
+              - text: can temporarily target a local folder (for example
+              - code [ref=f13e76]: ./docs
+              - text: ) for an isolated sync test; keep it out of production config. Generated content and manifests are ignored build inputs and must not be hand-edited.
+            - paragraph [ref=f13e77]:
+              - text: Press
+              - code [ref=f13e78]: Ctrl+K
+              - text: (or
+              - code [ref=f13e79]: Cmd+K
+              - text: on macOS) anywhere to open search. On a product page, search starts scoped to that product; switch to “All Docs” for portal-wide results. Hub searches are global. The Pagefind index is local and is generated during production builds; dev mode displays a note if no index exists yet.
+            - paragraph [ref=f13e80]:
+              - text: Static AI indexes are available at
+              - code [ref=f13e81]: /llms.txt
+              - text: and
+              - code [ref=f13e82]: /<product-slug>/llms.txt
+              - text: .
+              - code [ref=f13e83]: robots.txt
+              - text: allows crawlers and points to
+              - code [ref=f13e84]: /sitemap-index.xml
+              - text: . Unknown paths use the compact static 404 page.
+            - heading "Configuration overview" [level=2] [ref=f13e85]
+            - list [ref=f13e86]:
+              - listitem [ref=f13e87]:
+                - code [ref=f13e88]: config/site.config.json
+                - text: controls portal title, subtitle, canonical domain, brand identity, default accent, and navigation.
+              - listitem [ref=f13e89]:
+                - code [ref=f13e90]: config/projects.json
+                - text: lists products, categories, Git remotes, branches, docs paths, accents, CTA destinations, and optional metadata fallbacks.
+              - listitem [ref=f13e91]: Categories are derived from configured products. Adding a category does not require code changes.
+            - paragraph [ref=f13e92]:
+              - text: Synchronized files under
+              - code [ref=f13e93]: src/content/docs/
+              - text: ", generated data under"
+              - code [ref=f13e94]: src/generated/
+              - text: ", and synchronized logos under"
+              - code [ref=f13e95]: public/logos/
+              - text: are build artifacts and are ignored by Git except for
+              - code [ref=f13e96]: .gitkeep
+              - text: files. Do not edit generated files by hand.
+            - heading "Deployment" [level=2] [ref=f13e97]
+            - paragraph [ref=f13e98]:
+              - text: Configure the host to build from the portal’s own deployment repository. A documentation source repository webhook should trigger the host’s protected build hook; the build fetches current source content and publishes a complete static output. For Cloudflare Pages, set the build command to
+              - code [ref=f13e99]: npm run build
+              - text: ", the output directory to"
+              - code [ref=f13e100]: dist
+              - text: ", and use a protected Pages build hook. For a self-hosted VPS, build the Docker image and have Nginx serve only the resulting static files. The receiver must verify webhook authenticity and avoid exposing a shell command publicly. Build into staging and replace live output only after all build steps succeed."
+            - paragraph [ref=f13e101]:
+              - text: For private repositories, pass
+              - code [ref=f13e102]: GIT_TOKEN
+              - text: as a BuildKit secret rather than a committed file or Docker
+              - code [ref=f13e103]: ENV
+              - text: "value. Example:"
+              - code [ref=f13e104]: docker buildx build --secret id=git_token,env=GIT_TOKEN -t vib-docs-engine .
+              - text: . The final Nginx image contains only
+              - code [ref=f13e105]: dist/
+              - text: and Nginx configuration. Run it with
+              - code [ref=f13e106]: docker run --rm -p 8080:80 vib-docs-engine
+              - text: and visit
+              - code [ref=f13e107]: http://localhost:8080
+              - text: .
+            - paragraph [ref=f13e108]:
+              - text: See
+              - link "Adding Projects" [ref=f13e109] [cursor=pointer]:
+                - /url: adding-projects.md
+              - text: for product setup and webhook steps, and the architecture/feature specifications in
+              - code [ref=f13e110]: project/
+              - text: for the implementation contract.
+          - region "Page actions and navigation" [ref=f13e111]:
+            - link "Edit this page on Git" [ref=f13e112] [cursor=pointer]:
+              - /url: https://github.com/JILLU-Games/vib-docs-engine/edit/main/docs/index.md
+            - navigation "Previous and next pages" [ref=f13e117]:
+              - link "Next Adding Projects" [ref=f13e119] [cursor=pointer]:
+                - /url: /vib-docs-engine/adding-projects/
+                - generic [ref=f13e120]: Next
+                - generic [ref=f13e123]: Adding Projects
+        - complementary "Table of contents" [ref=f13e124]:
+          - paragraph [ref=f13e125]: On This Page
+          - navigation "On this page" [ref=f13e126]:
+            - list [ref=f13e127]:
+              - listitem [ref=f13e128]:
+                - link "Prerequisites for the implemented engine" [ref=f13e129] [cursor=pointer]:
+                  - /url: "#prerequisites-for-the-implemented-engine"
+              - listitem [ref=f13e131]:
+                - link "Local workflow" [ref=f13e132] [cursor=pointer]:
+                  - /url: "#local-workflow"
+              - listitem [ref=f13e134]:
+                - link "Configuration overview" [ref=f13e135] [cursor=pointer]:
+                  - /url: "#configuration-overview"
+              - listitem [ref=f13e137]:
+                - link "Deployment" [ref=f13e138] [cursor=pointer]:
+                  - /url: "#deployment"

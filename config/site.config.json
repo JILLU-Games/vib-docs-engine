@@ -1,0 +1,18 @@
+{
+  "portalTitle": "Vib Tools Documentation",
+  "portalSubtitle": "Guides and references for building with Vib Tools.",
+  "domain": "https://docs.vib.tools",
+  "brandName": "Vib Tools",
+  "brandLogo": "/logos/vib-tools.svg",
+  "defaultAccent": "#7C3AED",
+  "navLinks": [
+    {
+      "label": "Vib Tools",
+      "href": "https://vib.tools"
+    },
+    {
+      "label": "GitHub",
+      "href": "https://github.com/vibtools"
+    }
+  ]
+}
