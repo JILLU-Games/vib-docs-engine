@@ -149,6 +149,12 @@ Record dates, files/areas, behavior changed, and verification result whenever co
 - Updated `src/MANIFEST.md`, `notes/010-seo-phase-execution-tracker.md`, `notes/012-actual-implementation-matrix.md`, and `project/04-codebase-reference.md`.
 - Verified `npx --yes tsx --test src/utils/seo.test.ts src/utils/search.test.ts` (`8/8` pass), `compile_applet`, `lint_applet` (`tsc --noEmit`), `node scripts/verify-build.mjs` (`6` HTML files, `15` required assets, `0` broken links), and live Chromium `http://localhost:3000/?q=deployment` (`13` links, `0` console errors).
 
+## 2026-11-18 — Brand Logo, Product Icon & Favicon Visibility Fix
+
+- Moved the canonical portal brand logo outside gitignored `public/logos/*` to `public/vib-tools-logo.png` (and added `docs/logo.png` for `vib-docs-engine`), updating `config/site.config.json` and both portal presets (`user-portal`, `dev-portal`) so `brandLogo` never disappears during sync or workspace resets and `ProjectCard` / `Topbar` display the Vib Tools mark.
+- Added `<link rel="shortcut icon" href="/favicon.ico">` and `<link rel="icon" type="image/png" href="/web-app-manifest-192x192.png" sizes="192x192">` to `src/layouts/BaseLayout.astro`, updated `public/site.webmanifest` to include explicit `"any"` and `"maskable"` icon purposes, and extended `scripts/verify-build.mjs` to check all `link[rel*="icon"]` targets in `dist/`.
+- Verified `npx --yes tsx --test src/utils/seo.test.ts src/utils/search.test.ts` (`8/8`), `npm run verify` (`6` HTML files, `15` required assets, `0` broken links), `compile_applet`, `lint_applet`, and headless Chromium dark/light captures confirming `180x180` logos in Header, Footer, `ProjectCard`, and `Topbar`.
+
 
 
 

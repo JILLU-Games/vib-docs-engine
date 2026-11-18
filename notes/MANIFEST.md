@@ -16,3 +16,4 @@
 | `010-seo-phase-execution-tracker.md`             | Live execution tracker and completion log slots for `SEO-Phase 01` – `04`                    | Tracker    |
 | `011-error-handling-inventory.md`                | Verified error handling inventory and planned SEO/AI runtime/build safety guards             | Governance |
 | `012-actual-implementation-matrix.md`            | Source-verified matrix of actual working baseline features vs pending SEO/AI implementations  | Tracker    |
+| `013-brand-logo-and-favicon-fix.md`             | Root-cause analysis, fix plan, and browser verification for brand/product logos & favicons   | Fix        |

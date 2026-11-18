@@ -111,8 +111,8 @@ Tracked, non-routable authored folders carry a local `README.md` and `MANIFEST.m
 ## Automation
 
 - `scripts/add-project.mjs`: interactive validated registry writer. Reads categories, rejects duplicate slugs, accepts Git remotes or in-repository local test paths, defaults branch/accent/docsPath (validating against path traversal), enforces paired CTA label/URL configuration, and atomically renames a temporary JSON file.
-- `scripts/export-portal.mjs`: copies the clean source tree to a new external directory, excludes generated/vendor/preset/notes/playwright/artifacts paths, preserves `.gitkeep` and `public/logos/vib-tools.png`, injects one selected preset, and refuses an existing output path.
-- `scripts/verify-build.mjs`: validates required build artifacts (SEO, AI `/llms.txt` & `/llms-full.txt`, Cloudflare, favicons, `site.webmanifest`, `og-default.png`, `brandLogo`), each manifest route, product `llms.txt`, and per-page `.md` file, `dist/404.html` `noindex`, valid `<script type="application/ld+json">` parsing, and verifies internal `href` attributes plus `img[src]` assets resolve inside `dist/`.
+- `scripts/export-portal.mjs`: copies the clean source tree to a new external directory, excludes generated/vendor/preset/notes/playwright/artifacts paths, preserves `.gitkeep`, injects one selected preset, and refuses an existing output path.
+- `scripts/verify-build.mjs`: validates required build artifacts (SEO, AI `/llms.txt` & `/llms-full.txt`, Cloudflare, favicons, `site.webmanifest`, `og-default.png`, `brandLogo`), each manifest route, product `llms.txt`, and per-page `.md` file, `dist/404.html` `noindex`, valid `<script type="application/ld+json">` parsing, and verifies internal `href`, `link[rel*="icon"]`, and `img[src]` assets resolve inside `dist/`.
 - `templates/github-notify-docs.yml`: GitHub Actions push-to-main/docs-path build-hook caller.
 - `templates/webhook-trigger.sh`: protected environment-variable curl hook for other Git hosts/VPS pipelines.
 

@@ -294,6 +294,19 @@ async function main() {
           );
         }
       }
+
+      const iconLinkPattern =
+        /<link\b[^>]*?\brel\s*=\s*(?:"([^"]*icon[^"]*)"|'([^']*icon[^']*)')[^>]*>/gi;
+      for (const match of html.matchAll(iconLinkPattern)) {
+        const hrefMatch = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(match[0]);
+        const iconHref = (hrefMatch?.[1] ?? hrefMatch?.[2] ?? "").replace(/&amp;/g, "&");
+        if (!iconHref || !isInternalReference(iconHref)) continue;
+        if (!(await resolveInternalAsset(iconHref, htmlFile))) {
+          brokenLinks.push(
+            `${relHtmlPath} -> link[href="${iconHref}"]`,
+          );
+        }
+      }
     }
 
     if (missingFiles.length || brokenLinks.length || cloudflareErrors.length || seoErrors.length) {

@@ -10,8 +10,9 @@
 | `web-app-manifest-192x192.png`  | 192x192 PWA manifest icon                                | Hand-maintained                                                          |
 | `web-app-manifest-512x512.png`  | 512x512 PWA manifest icon                                | Hand-maintained                                                          |
 | `site.webmanifest`              | Web App Manifest (`Vib Tools Documentation`)             | Hand-maintained                                                          |
+| `vib-tools-logo.png`            | Portal header and footer Vib Tools brand mark            | Hand-maintained                                                          |
 | `og-default.png`                | Default OpenGraph / Twitter social preview image         | Hand-maintained                                                          |
 | `_headers`                      | Cloudflare Pages edge cache and security headers         | Hand-maintained                                                          |
 | `_redirects`                    | Cloudflare Pages legacy hostname redirect rules          | Hand-maintained                                                          |
 | `_routes.json`                  | Cloudflare Pages Functions `/api/*` routing rules        | Hand-maintained                                                          |
-| `logos/`                        | Static brand logo (`vib-tools.png`) + synced product logos | Generated + hand-kept (`vib-tools.png`, `.gitkeep`)                    |
+| `logos/`                        | Synced per-product logos (`<slug>.svg`/`.png`)           | Generated (`npm run sync`) + `.gitkeep`                                  |
