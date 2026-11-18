@@ -196,6 +196,17 @@ export default defineConfig({
           for (const governanceFile of ["MANIFEST.md", "README.md"]) {
             await fs.rm(path.join(outDir, governanceFile), { force: true });
           }
+          const aistudioAssetsDir = path.join(outDir, "assets", "aistudio");
+          await fs.rm(aistudioAssetsDir, { recursive: true, force: true });
+          const assetsDir = path.join(outDir, "assets");
+          try {
+            const entries = await fs.readdir(assetsDir);
+            if (entries.length === 0) {
+              await fs.rmdir(assetsDir);
+            }
+          } catch {
+            // assetsDir does not exist
+          }
         },
       },
     },

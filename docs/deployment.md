@@ -11,7 +11,7 @@ npm run export-portal -- --portal user --out ../docs-vib-tools
 npm run export-portal -- --portal dev --out ../developer-vibtools-io
 ```
 
-The exporter copies the engine source while excluding dependencies, build output, generated documentation, generated logos, development notes, `bun.lock`, and the presets directory (and omits engine `.vibtools/` when exporting `--portal user`). It installs the matching preset files as each export's active `config/site.config.json` (`"portalType": "users"` for `docs.vib.tools` and `"portalType": "developer"` for `developer.vibtools.io`) and `config/projects.json`, updates `wrangler.toml` (`name = "docs-vib-tools"` vs `name = "developer-vibtools-io"`) and `public/site.webmanifest` branding/theme color, and preserves the `.gitkeep` files in generated folders.
+The exporter copies the engine source while excluding dependencies, build output, generated documentation, generated logos, development notes, `.aistudio`, `public/assets/aistudio`, `bun.lock`, and the presets directory (and omits engine `.vibtools/` when exporting `--portal user`). It installs the matching preset files as each export's active `config/site.config.json` (`"portalType": "users"` for `docs.vib.tools` and `"portalType": "developer"` for `developer.vibtools.io`) and `config/projects.json`, updates `wrangler.toml` (`name = "docs-vib-tools"` vs `name = "developer-vibtools-io"`) and `public/site.webmanifest` branding/theme color, and preserves the `.gitkeep` files in generated folders.
 
 Because `scripts/sync-docs.mjs` matches each portal's `portalType` against each repository's `.vibtools/docs.config.json` (or `config.docs.json`) `docsType` and `targets` block, a shared repository URL can live in one or both portal registries while checking out only the matching audience's `docsPath`. See [`.vibtools/` Configuration](vibtools-config.md).
 
@@ -32,12 +32,12 @@ Create a separate Pages project for each exported Git repository. The repository
 
 - Build command: `npm run build` (or `npm run cf:build`)
 - Build output directory: `dist`
-- Node.js version: pinned automatically to `22.24.0` via `.node-version` and `.nvmrc` (matching Astro 7's `>=22.23.4` requirement and `engines.node >=22.23.4` in `package.json`).
+- Node.js version: pinned automatically to `22.23.5` via `.node-version` and `.nvmrc` (an official Node.js 22 release satisfying Astro 7's `>=22.23.4` requirement and `engines.node >=22.23.4` in `package.json`).
 - Private repository credentials:
   - Single shared org/account token: add `GIT_TOKEN` as a protected Pages environment secret. Add `GIT_USERNAME` only if that Git host needs a non-default username.
   - Multiple independent private repositories: create distinct Pages environment secrets (e.g., `GIT_TOKEN_APP1`, `GIT_TOKEN_APP2`) and reference them per project via `"secretKey": "$GIT_TOKEN_APP1"` in `config/projects.json`.
 - Static Edge & Functions routing:
-  - `public/_headers`: configures immutable caching for `/_astro/*`, revalidation for `/pagefind/*`, `Content-Type` + cache headers for `/llms.txt`, `/llms-full.txt`, `/*/llms.txt`, `/*.md`, `/site.webmanifest`, and `/robots.txt`, plus security headers. Internal `public/MANIFEST.md` and `public/README.md` governance indexes are automatically pruned from `dist/` at build completion.
+  - `public/_headers`: configures immutable caching for `/_astro/*`, revalidation for `/pagefind/*`, `Content-Type` + cache headers for `/llms.txt`, `/llms-full.txt`, `/*/llms.txt`, `/*.md`, `/site.webmanifest`, and `/robots.txt`, plus security headers. Internal `public/MANIFEST.md`, `public/README.md`, and any `public/assets/aistudio/` workspace files are automatically pruned from `dist/` at build completion.
   - `public/_redirects`: holds relative-path redirect rules (Cloudflare Pages `_redirects` does not support custom-domain-to-domain redirects).
   - `public/_routes.json`: restricts Cloudflare Pages Functions invocation strictly to `/api/*` so all documentation pages serve directly from the static CDN edge.
 - Built-in Pages Functions (`functions/api/`):

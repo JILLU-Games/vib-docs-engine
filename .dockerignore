@@ -1,9 +1,14 @@
 .git
 .astro
 .playwright-mcp
+.playwright-cli
+.aistudio
 artifacts
 node_modules
 dist
+bun.lock
+bun.lockb
+public/assets/aistudio
 .env
 .env.*
 !.env.example

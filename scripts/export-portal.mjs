@@ -15,6 +15,7 @@ const excludedNames = new Set([
   "notes",
   ".playwright-mcp",
   ".playwright-cli",
+  ".aistudio",
   "artifacts",
 ]);
 const generatedRoots = ["src/content/docs", "src/generated", "public/logos"];
@@ -72,6 +73,11 @@ function shouldSkip(relativePath, portal) {
     return true;
   if (portal === "user" && segments[0] === ".vibtools") return true;
   if (normalized === "bun.lock" || normalized === "bun.lockb") return true;
+  if (
+    normalized === "public/assets/aistudio" ||
+    normalized.startsWith("public/assets/aistudio/")
+  )
+    return true;
   if (segments[0] === "config" && segments[1] === "presets") return true;
 
   for (const generatedRoot of generatedRoots) {

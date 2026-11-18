@@ -223,3 +223,12 @@ Record dates, files/areas, behavior changed, and verification result whenever co
 - Added fail-closed `CF_PAGES=1` / `STRICT_SYNC=1` / `--strict` guards in `scripts/sync-docs.mjs` and `scripts/verify-build.mjs` rejecting unreplaced `YOUR_ORG` starter repository URLs in production CI while preserving the local `./docs` fixture fallback for local smoke builds (`CF2-F09`).
 - Synchronized `docs/deployment.md`, `project/04-codebase-reference.md`, and `notes/028-cf2-roadmap-and-execution-tracker.md`.
 - Verified `npm test` (`16/16`), `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, `npm run verify` (`7` HTML files, `15` assets, `5` Pagefind pages, `0` broken links), `CF2_PHASE03_PROOF: PASS`, `compile_applet`, and `lint_applet`.
+
+## 2026-11-18 — `CF2-Phase 04`: Official Node `22.23.5` Pin, Root `bun.lock` Removal, Registry `package-lock.json` & Workspace Artifact Hygiene (`CF2-F10` – `CF2-F13`)
+
+- Updated `.node-version` and `.nvmrc` from `22.24.0` (unpublished on `nodejs.org/dist/`, HTTP `404`) to official `22.23.5` (HTTP `200`, satisfying Astro 7's `>=22.23.4` requirement) so Cloudflare Pages container Node setup succeeds (`CF2-F10`).
+- Removed conflicting root `/bun.lock` and added `bun.lock` / `bun.lockb` to `.gitignore` and `.dockerignore` so repositories pushed to GitHub use a single canonical `package-lock.json` (`CF2-F11`).
+- Regenerated `package-lock.json` cleanly from the npm registry (`511` total packages, `505` with `resolved` + `integrity` hashes, `156` cross-platform optional binaries including `linux-x64-gnu`, `linux-x64-musl`, `darwin-arm64`, and `engines.node: ">=22.23.4"`) (`CF2-F12`).
+- Removed leaked `public/assets/aistudio/` chat screenshots, ignored `.aistudio/` and `public/assets/aistudio/` in `.gitignore`, `.dockerignore`, and `scripts/export-portal.mjs`, extended `astro.config.mjs` (`vib-prune-public-governance-docs`) to prune `dist/assets/aistudio`, and added automated assertions in `scripts/verify-build.mjs` (`CF2-F13`).
+- Synchronized `MANIFEST.md`, `docs/deployment.md`, `project/04-codebase-reference.md`, `notes/027`, and `notes/028`.
+

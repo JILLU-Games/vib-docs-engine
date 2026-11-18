@@ -5,7 +5,11 @@ dist/
 .env*
 .playwright-mcp/
 .playwright-cli/
+.aistudio/
 artifacts/
+bun.lock
+bun.lockb
+public/assets/aistudio/
 
 src/content/docs/*
 !src/content/docs/.gitkeep

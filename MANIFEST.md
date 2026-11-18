@@ -7,9 +7,9 @@
 | `MANIFEST.md`                               | Inventory of root files/folders                                         |
 | `CONTRIBUTING.md`                           | Contributor setup and verification guide                                |
 | `SECURITY.md`                               | Private vulnerability reporting instructions                            |
-| `package.json`, `package-lock.json`, `bun.lock` | npm/Bun scripts (`build`, `cf:build`, `pages:build`), Node 22 engine lock, and dependencies |
+| `package.json`, `package-lock.json`         | npm scripts (`build`, `cf:build`, `pages:build`), Node 22 engine lock, and dependencies |
 | `astro.config.mjs`, `tsconfig.json`         | Astro integrations/static output and TypeScript setup                   |
-| `wrangler.toml`, `.node-version`, `.nvmrc`  | Cloudflare Pages & Functions configuration and Node.js `22.24.0` pin    |
+| `wrangler.toml`, `.node-version`, `.nvmrc`  | Cloudflare Pages & Functions configuration and Node.js `22.23.5` pin    |
 | `functions/`                                | Cloudflare Pages Functions (`/api/health`, `/api/webhook`) & isolated `tsconfig.json` |
 | `Dockerfile`, `nginx.conf`, `.dockerignore` | VPS/Coolify static deployment assets                                    |
 | `.gitignore`                                | Generated/dependency exclusions                                         |

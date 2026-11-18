@@ -383,6 +383,7 @@ async function main() {
       "wrangler.toml",
       ".node-version",
       ".nvmrc",
+      "package-lock.json",
       path.join("functions", "tsconfig.json"),
       path.join("functions", "api", "health.ts"),
       path.join("functions", "api", "webhook.ts"),
@@ -391,6 +392,69 @@ async function main() {
       const filePath = path.join(projectRoot, file);
       if (!(await exists(filePath)))
         missingFiles.push(path.relative(projectRoot, filePath));
+    }
+
+    const nodeVersionPath = path.join(projectRoot, ".node-version");
+    const nvmrcPath = path.join(projectRoot, ".nvmrc");
+    if ((await exists(nodeVersionPath)) && (await exists(nvmrcPath))) {
+      const nodeVer = (await fs.readFile(nodeVersionPath, "utf8"))
+        .trim()
+        .replace(/^v/i, "");
+      const nvmrcVer = (await fs.readFile(nvmrcPath, "utf8"))
+        .trim()
+        .replace(/^v/i, "");
+      if (nodeVer !== nvmrcVer) {
+        cloudflareErrors.push(
+          `.node-version (${nodeVer}) and .nvmrc (${nvmrcVer}) must specify the same Node.js version`,
+        );
+      }
+      if (nodeVer === "22.24.0") {
+        cloudflareErrors.push(
+          `.node-version/${nodeVer} is not a published Node.js release on nodejs.org/dist (pin to 22.23.5)`,
+        );
+      }
+      const [maj, min, pat] = nodeVer.split(".").map(Number);
+      const satisfiesAstroNode =
+        maj > 22 ||
+        (maj === 22 && (min > 23 || (min === 23 && pat >= 4)));
+      if (!satisfiesAstroNode) {
+        cloudflareErrors.push(
+          `.node-version (${nodeVer}) must be >=22.23.4 for Astro 7 compatibility`,
+        );
+      }
+    }
+
+    for (const conflictingLockfile of ["bun.lock", "bun.lockb"]) {
+      if (await exists(path.join(projectRoot, conflictingLockfile))) {
+        cloudflareErrors.push(
+          `${conflictingLockfile} must not exist alongside package-lock.json (prevents Cloudflare Pages package-manager mismatch)`,
+        );
+      }
+    }
+
+    const packageLockPath = path.join(projectRoot, "package-lock.json");
+    if (await exists(packageLockPath)) {
+      try {
+        const lockJson = JSON.parse(await fs.readFile(packageLockPath, "utf8"));
+        const rootEnginesNode = lockJson?.packages?.[""]?.engines?.node;
+        if (rootEnginesNode !== ">=22.23.4") {
+          cloudflareErrors.push(
+            `package-lock.json packages[""].engines.node is "${rootEnginesNode}" (expected ">=22.23.4")`,
+          );
+        }
+        const resolvedCount = Object.entries(lockJson?.packages ?? {}).filter(
+          ([key, val]) => key !== "" && typeof val?.resolved === "string",
+        ).length;
+        if (resolvedCount === 0) {
+          cloudflareErrors.push(
+            "package-lock.json is missing registry resolved tarball URLs",
+          );
+        }
+      } catch (error) {
+        cloudflareErrors.push(
+          `package-lock.json is invalid JSON: ${error.message}`,
+        );
+      }
     }
 
     const distRoutesPath = path.join(distDirectory, "_routes.json");
@@ -438,7 +502,11 @@ async function main() {
       }
     }
 
-    for (const leakedFile of ["MANIFEST.md", "README.md"]) {
+    for (const leakedFile of [
+      "MANIFEST.md",
+      "README.md",
+      path.join("assets", "aistudio"),
+    ]) {
       if (await exists(path.join(distDirectory, leakedFile))) {
         cloudflareErrors.push(
           `dist/${leakedFile} must not be published in the static output root`,
