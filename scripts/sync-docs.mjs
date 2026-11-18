@@ -560,7 +560,7 @@ async function main() {
     );
   }
   const siteConfig = siteResult.data;
-  const preservedLogos = new Set([".gitkeep", "vib-tools.svg"]);
+  const preservedLogos = new Set([".gitkeep", "vib-tools.png"]);
   if (siteConfig.brandLogo.startsWith("/logos/")) {
     preservedLogos.add(path.posix.basename(siteConfig.brandLogo));
   }

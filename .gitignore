@@ -13,4 +13,4 @@ src/generated/*
 !src/generated/.gitkeep
 public/logos/*
 !public/logos/.gitkeep
-!public/logos/vib-tools.svg
+!public/logos/vib-tools.png

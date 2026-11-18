@@ -1,5 +1,5 @@
 ---
-import { Check, ChevronDown, Menu, Search, X } from "lucide-astro";
+import { ArrowUpRight, Check, ChevronDown, Menu, Search, X } from "lucide-astro";
 import { getMonogram, resolveAccentColor } from "../../utils/theme";
 import type { ManifestProject } from "../../utils/manifest";
 import ThemeToggle from "../ui/ThemeToggle.astro";
@@ -14,11 +14,11 @@ const productAccent = resolveAccentColor(product.accentColor);
 const isExternalCta = product.ctaUrl ? /^https?:\/\//i.test(product.ctaUrl) : false;
 ---
 
-<header class="sticky top-0 z-40 h-[52px] border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)]/90 backdrop-blur-md">
-  <div class="mx-auto flex h-full max-w-[1600px] items-center justify-between gap-1 px-2 sm:gap-3 sm:px-4">
-    <div class="flex min-w-0 items-center gap-1.5 sm:gap-2.5">
+<header class="sticky top-0 z-40 h-14 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)]/90 backdrop-blur-md">
+  <div class="mx-auto flex h-full max-w-[1600px] items-center justify-between gap-2 px-3 sm:px-4 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:gap-4 lg:px-6">
+    <div class="flex min-w-0 items-center gap-1.5 sm:gap-2.5 lg:justify-self-start">
       <button
-        class="inline-grid size-[30px] shrink-0 place-items-center rounded-md border border-transparent text-[var(--text-muted)] hover:border-[var(--border-hairline)] hover:bg-[var(--bg-surface)] md:hidden"
+        class="inline-grid size-8 shrink-0 cursor-pointer place-items-center rounded-md border border-transparent text-[var(--text-muted)] transition-colors hover:border-[var(--border-hairline)] hover:bg-[var(--bg-surface)] md:hidden"
         type="button"
         id="mobile-sidebar-toggle"
         aria-label="Open documentation navigation"
@@ -32,7 +32,7 @@ const isExternalCta = product.ctaUrl ? /^https?:\/\//i.test(product.ctaUrl) : fa
       <a class="shrink-0 text-xs text-[var(--text-muted)] no-underline transition-colors hover:text-[var(--text-primary)]" href="/">
         ← All
       </a>
-      <span class="h-5 w-px shrink-0 bg-[var(--border-hairline)]" aria-hidden="true"></span>
+      <span class="h-4 w-px shrink-0 bg-[var(--border-hairline)]" aria-hidden="true"></span>
 
       <details class="group/product relative min-w-0" data-product-switcher>
         <summary
@@ -87,31 +87,35 @@ const isExternalCta = product.ctaUrl ? /^https?:\/\//i.test(product.ctaUrl) : fa
       </details>
     </div>
 
-    <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
-      <button
-        class="inline-flex h-[30px] min-w-[30px] items-center gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-color)]"
-        type="button"
-        data-doc-search-trigger
-        data-product-slug={product.slug}
-        data-product-title={product.title}
-        aria-label={`Search ${product.title} documentation`}
-      >
+    <button
+      class="ml-auto inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-surface)] text-xs text-[var(--text-muted)] transition-colors hover:border-[var(--text-muted)]/40 hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-color)] sm:w-auto sm:justify-between sm:px-2.5 md:min-w-[200px] lg:ml-0 lg:w-72 lg:justify-self-center xl:w-80"
+      type="button"
+      data-doc-search-trigger
+      data-product-slug={product.slug}
+      data-product-title={product.title}
+      aria-label={`Search ${product.title} documentation`}
+    >
+      <span class="flex min-w-0 items-center gap-2">
         <Search class="size-3.5 shrink-0" aria-hidden="true" />
-        <span class="hidden max-w-36 truncate sm:inline">Search {product.title}...</span>
-        <kbd class="hidden rounded border border-[var(--border-hairline)] px-1 py-px font-mono text-[10px] leading-4 text-[var(--text-muted)] lg:inline-flex">Ctrl K</kbd>
-      </button>
+        <span class="hidden truncate sm:inline">Search {product.title}...</span>
+      </span>
+      <kbd class="hidden shrink-0 rounded border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-1.5 py-px font-mono text-[10px] leading-4 text-[var(--text-muted)] lg:inline-flex">Ctrl K</kbd>
+    </button>
 
+    <div class="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:justify-self-end">
       {product.ctaUrl && (
         <a
-          class="max-w-[76px] truncate rounded-md border border-[color-mix(in_srgb,var(--accent-color)_45%,var(--border-hairline))] bg-[color-mix(in_srgb,var(--accent-color)_12%,var(--bg-surface))] px-2 py-1.5 text-center text-xs font-medium text-[var(--text-primary)] no-underline transition-colors hover:bg-[color-mix(in_srgb,var(--accent-color)_20%,var(--bg-surface))] sm:max-w-none sm:px-2.5"
+          class="inline-flex h-8 max-w-[84px] items-center gap-1 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 text-xs font-medium text-[var(--text-primary)] no-underline transition-colors hover:border-[var(--text-muted)]/40 hover:bg-[var(--bg-hover)] sm:max-w-none"
           href={product.ctaUrl}
           target={isExternalCta ? "_blank" : undefined}
           rel={isExternalCta ? "noopener noreferrer" : undefined}
         >
-          {product.ctaLabel || "Open"}
+          <span class="truncate">{product.ctaLabel || "Open"}</span>
+          {isExternalCta && <ArrowUpRight class="hidden size-3 shrink-0 text-[var(--text-muted)] sm:inline" aria-hidden="true" />}
         </a>
       )}
 
+      {product.ctaUrl && <span class="hidden h-4 w-px bg-[var(--border-hairline)] sm:block" aria-hidden="true"></span>}
       <ThemeToggle />
     </div>
   </div>

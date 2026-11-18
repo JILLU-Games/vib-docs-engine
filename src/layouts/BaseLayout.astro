@@ -21,6 +21,7 @@ const pageTitle = title === siteConfig.portalTitle
   ? title
   : `${title} | ${siteConfig.portalTitle}`;
 const canonicalUrl = new URL(canonicalPath ?? Astro.url.pathname, siteConfig.domain).href;
+const ogImageUrl = new URL("/og-default.png", siteConfig.domain).href;
 const resolvedAccent = resolveAccentColor(accentColor, siteConfig.defaultAccent);
 ---
 
@@ -32,16 +33,22 @@ const resolvedAccent = resolveAccentColor(accentColor, siteConfig.defaultAccent)
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
     <meta name="theme-color" content={siteConfig.defaultAccent} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="apple-mobile-web-app-title" content={siteConfig.brandName} />
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <link rel="canonical" href={canonicalUrl} />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={siteConfig.brandName} />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonicalUrl} />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={pageTitle} />
     <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageUrl} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
     <link

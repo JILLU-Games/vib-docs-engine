@@ -121,6 +121,11 @@ async function main() {
       "robots.txt",
       "sitemap-index.xml",
       "llms.txt",
+      "favicon.ico",
+      "favicon-96x96.png",
+      "apple-touch-icon.png",
+      "site.webmanifest",
+      "og-default.png",
       "_headers",
       "_redirects",
       "_routes.json",
@@ -130,6 +135,27 @@ async function main() {
       const filePath = path.join(distDirectory, file);
       if (!(await exists(filePath)))
         missingFiles.push(path.relative(projectRoot, filePath));
+    }
+
+    const brandLogo = manifest.site?.brandLogo;
+    if (typeof brandLogo === "string" && brandLogo.startsWith("/")) {
+      const logoDistPath = path.join(distDirectory, brandLogo.slice(1));
+      if (!(await exists(logoDistPath))) {
+        missingFiles.push(path.relative(projectRoot, logoDistPath));
+      }
+    }
+
+    const webmanifestPath = path.join(distDirectory, "site.webmanifest");
+    if (await exists(webmanifestPath)) {
+      const webmanifest = JSON.parse(await fs.readFile(webmanifestPath, "utf8"));
+      for (const icon of webmanifest.icons ?? []) {
+        if (typeof icon?.src === "string" && icon.src.startsWith("/")) {
+          const iconPath = path.join(distDirectory, icon.src.slice(1));
+          if (!(await exists(iconPath))) {
+            missingFiles.push(path.relative(projectRoot, iconPath));
+          }
+        }
+      }
     }
 
     const cloudflareErrors = [];

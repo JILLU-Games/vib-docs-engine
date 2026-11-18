@@ -94,3 +94,29 @@ Record dates, files/areas, behavior changed, and verification result whenever co
 - Updated `scripts/verify-build.mjs` to require `functions/tsconfig.json`, validate `dist/_routes.json` JSON schema (`version: 1`, `include`/`exclude` arrays), and flag unsupported non-`pages.dev` custom-domain source URLs in `dist/_redirects`.
 - Synchronized `docs/deployment.md`, `MANIFEST.md`, `project/04-codebase-reference.md`, and `notes/003-cloudflare-phase-tracker-and-future-plan.md` with the verified Cloudflare Pages & Functions setup (`22.24.0` Node pin, `package-lock.json`, multi-repo `GIT_TOKEN`/`secretKey`, HMAC webhooks, and Zone Redirect Rules).
 - Verified `npm run verify`, `npx tsc --noEmit`, `npx tsc -p functions/tsconfig.json --noEmit`, and `export-portal` smoke exports (`100%` Cloudflare Pages & Functions Ready).
+
+## 2026-11-18 — Vib Tools Branding Audit & Original Asset Integration
+
+- Audited all 17 uploaded files in `public/vib.tools.Branding/vib.tools.Branding/` (`5.2 MB`): identified exact SHA-256 duplicate (`icon-512.png` === `vibtools-icon.png`), base64-PNG-wrapped `favicon.svg` (`214 KB`), oversized avatar/icon variants (`1.4 MB` each), and broken `site.webmanifest` template (`MyWebSite`, invalid `/favicon/...` icon URLs).
+- Replaced placeholder SVGs (`public/favicon.svg`, `public/logos/vib-tools.svg`) and removed the unorganized raw branding directory with clean production assets: `public/logos/vib-tools.png` (`19 KB`, `128x128` crisp mark), `public/favicon.ico`, `public/favicon-96x96.png`, `public/apple-touch-icon.png`, `public/web-app-manifest-192x192.png`, `public/web-app-manifest-512x512.png`, `public/og-default.png`, and corrected `public/site.webmanifest`.
+- Updated `config/site.config.json`, `config/presets/*/site.config.json`, `.gitignore`, `scripts/sync-docs.mjs`, `scripts/export-portal.mjs`, `src/layouts/BaseLayout.astro`, `src/layouts/HubLayout.astro`, `scripts/verify-build.mjs`, and `public/` manifests to wire `/logos/vib-tools.png`, favicons, PWA manifest, and OpenGraph social cards (`og:image`, `twitter:image`).
+
+## 2026-11-18 — Search UI & SearchModal Scope-Locked Fix
+
+- Fixed `src/components/ui/SearchModal.astro` positioning (`flex items-start justify-center pt-10 sm:pt-14` + `mx-auto`) eliminating the top-left pinning bug, added explicit `[hidden]` display overrides and `flex` on `[data-search-scope-bar]`, hid browser-native `-webkit-search-cancel-button` to prevent duplicate `×` buttons, and switched highlight styling to `:global(.search-palette mark)` with `--accent-color` tinting.
+- Added smooth backdrop/palette transitions with scrollbar gutter compensation, clickable `ESC` close button, compact result rows with file/clock icons and sub-result rails, keyboard hint footer (`↑↓`, `↵`, `ESC`), and Stripe-style empty-state `Recently viewed` (`localStorage`) + manifest-backed `Suggested` links powered by pure helpers in `src/utils/search.ts`.
+- Polished `[data-search-trigger]` (`src/layouts/HubLayout.astro`) and `[data-doc-search-trigger]` (`src/components/docs/Topbar.astro`) with `cursor-pointer` and balanced desktop trigger spacing.
+- Verified `npx --yes tsx --test src/utils/search.test.ts` (`4/4`), `npm run verify`, `tsc --noEmit`, and headless Chromium captures across Dark, Light, Desktop (`1440x900`), and Mobile (`390x844`).
+
+## 2026-11-18 — Header UI Balance & Visual Polish
+
+- Redesigned `src/layouts/HubLayout.astro` header into a balanced `h-14` (`56px`) 3-slot desktop grid (`md:grid-cols-[1fr_auto_1fr]`): left-aligned brand (`Vib Tools / Docs`), centered `w-72`/`lg:w-80` untruncated search bar (`Search documentation...`), and right-aligned external nav links with `ArrowUpRight` icons separated from `ThemeToggle` by a `1px` vertical hairline divider.
+- Aligned `src/components/docs/Topbar.astro` (`lg:grid-cols-[1fr_auto_1fr]`, `h-14`, centered `320px` scoped search trigger, external CTA `ArrowUpRight` cue, hairline divider) and `src/components/ui/ThemeToggle.astro` (`size-8`, `cursor-pointer`) with consistent spacing and theme contrast.
+- Verified `compile_applet`, `lint_applet`, `node scripts/verify-build.mjs`, and live headless Chromium captures across Hub/Docs (`1440x900` dark/light) and Mobile (`390x844`).
+
+## 2026-11-18 — Home Hero & Compact 4-Column Footer UI
+
+- Updated `src/pages/index.astro` with a compact split Hero powered by `manifest.json` (`Browse {primaryProject.title}` CTA, `Search docs` button wired to `[data-search-trigger]`, and right-side `Quick Guides` card populated via `buildQuickSuggestions`) plus a crisp `Documentation` count bar above the untouched `CategoryTabs` and `ProjectCard` grid.
+- Upgraded `src/layouts/HubLayout.astro` footer (leaving `<header>` untouched) into a 4-column responsive structure (`Brand`, `Documentation`, `Resources` -> `/llms.txt` & `/sitemap-index.xml`, `Connect` -> `site.navLinks`) with a hairline copyright and domain hostname bar.
+- Verified `compile_applet`, `lint_applet` (`tsc --noEmit`), `node scripts/verify-build.mjs` (`6` HTML files, `14` required assets, `0` broken links), `npx --yes tsx --test src/utils/search.test.ts` (`4/4`), and Chromium captures across Dark/Light Desktop (`1440x900`) and Mobile (`390x844`).
+

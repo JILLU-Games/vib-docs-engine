@@ -39,10 +39,11 @@ This reference maps checked-in source to responsibilities. Build outputs, synchr
 | `scripts/export-portal.mjs`           | `main`                                                     | Validate preset, export to staging, inject paired configs, atomically rename.                                      |
 | `scripts/verify-build.mjs`            | `exists` / `walkHtml` / `routeToHtml`                      | Check required output files, enumerate built HTML, and map manifest routes to static HTML files.                   |
 | `scripts/verify-build.mjs`            | `isInternalReference` / `resolveCandidatePath`             | Classify root-relative and document-relative references and resolve them safely inside `dist/`.                    |
-| `scripts/verify-build.mjs`            | `resolveInternalHref` / `resolveInternalAsset` / `main`    | Verify required assets, routes, per-product AI indexes, `_routes.json`/`_redirects` rules, internal `href` links, and `img[src]` files. |
+| `scripts/verify-build.mjs`            | `resolveInternalHref` / `resolveInternalAsset` / `main`    | Verify required assets (including favicons, webmanifest, OG image, and brand logo), routes, per-product AI indexes, `_routes.json`/`_redirects` rules, internal `href` links, and `img[src]` files. |
 | `src/components/ui/SearchModal.astro` | `getPagefind` / `search`                                   | Lazy-load Pagefind once and issue global or product-filtered queries.                                              |
-| `src/components/ui/SearchModal.astro` | `safeResultUrl` / `appendSafeExcerpt` / `createResultItem` | Keep results same-origin and render excerpts as text plus safe `mark` nodes.                                       |
-| `src/components/ui/SearchModal.astro` | `setScope` / `scheduleSearch` / `openModal` / `closeModal` / `getResultLinks` | Manage scope, debounce, focus/scroll lock, `ArrowDown`/`ArrowUp`/`Enter` keyboard navigation, and modal lifecycle. |
+| `src/components/ui/SearchModal.astro` | `safeResultUrl` / `appendSafeExcerpt` / `createResultItem` | Keep results same-origin, render excerpts as text plus safe accent-tinted `mark` nodes, and display nested sub-results. |
+| `src/components/ui/SearchModal.astro` | `renderInitialState` / `recordCurrentDocVisit` / `openModal` / `closeModal` | Show `Recently viewed` (`localStorage`) + manifest `Suggested` links on open, preserve scroll gutter, and handle keyboard navigation. |
+| `src/utils/search.ts`                 | `normalizeRoutePath` / `formatBreadcrumb` / `upsertRecentDoc` / `buildQuickSuggestions` / `selectInitialSuggestions` | Pure search UI helpers for breadcrumbs, deduplicated recent history, and scoped initial suggestions. |
 | `functions/api/health.ts`             | `onRequestGet` / `onRequest`                               | Cloudflare Pages Function health check endpoint (`GET /api/health`, `405` on non-GET).                              |
 | `functions/api/webhook.ts`            | `onRequestPost` / `verifyHmacSha256` / `parseBranchFromPayload` | Cloudflare Pages Function authenticated webhook relay (`POST /api/webhook`) supporting GitHub/Gitea/Forgejo HMAC-SHA256, `X-Gitlab-Token`, `X-Webhook-Secret`, `Bearer`, and `ALLOWED_BRANCHES` filtering. |
 
@@ -89,27 +90,27 @@ Tracked, non-routable authored folders carry a local `README.md` and `MANIFEST.m
 
 ## UI modules and routes
 
-- `src/layouts/BaseLayout.astro`: CSS entry, theme-before-paint script, SEO/canonical/OpenGraph, favicon, global search modal mount.
-- `src/layouts/HubLayout.astro`: portal header, global search event, nav, footer, theme control.
+- `src/layouts/BaseLayout.astro`: CSS entry, theme-before-paint script, SEO/canonical/OpenGraph (`og-default.png`), favicon/Apple touch icon suite, webmanifest, global search modal mount.
+- `src/layouts/HubLayout.astro`: balanced 3-slot `h-14` portal header (`brandName / Docs`, centered untruncated search trigger, external nav links with `ArrowUpRight` and hairline divider, theme control) and compact 4-column manifest-driven footer (`Brand`, `Documentation`, `Resources`, `Connect`, plus copyright/domain bar).
 - `src/layouts/DocsLayout.astro`: article metadata, Pagefind body/filter/meta, breadcrumb, sidebar, topbar, TOC, Prev/Next placement.
 - `src/components/hub/CategoryTabs.astro`: dynamic category filtering; omitted for zero/one category.
 - `src/components/hub/ProjectCard.astro`: manifest-backed link, logo/monogram, category, description, version.
-- `src/components/docs/Topbar.astro`: product switcher, scoped search event, CTA, theme and mobile-sidebar control.
+- `src/components/docs/Topbar.astro`: matching `h-14` 3-slot docs header with product switcher, centered scoped search trigger, external CTA button with arrow cue, divider, theme toggle, and mobile sidebar control.
 - `src/components/docs/Sidebar.astro` and `SidebarTree.astro`: recursive navigation, trailing-slash normalized active state, active group header styling, and mobile drawer.
 - `src/components/docs/TableOfContents.astro`: heading links and scroll spy.
 - `src/components/docs/PrevNextNav.astro`: validated source edit URL and adjacent flat-page links.
 - `src/components/mdx/Callout.astro` and `CodeTabs.astro`: MDX callouts and client-side tab groups (supporting both explicit `data-code-panel` wrappers and direct child code blocks).
-- `src/components/ui/ThemeToggle.astro` / `SearchModal.astro`: persistent theme switch and lazy Pagefind global/scoped search with `ArrowDown`/`ArrowUp`/`Enter` keyboard navigation.
-- `src/utils/theme.ts`: accent validation fallback and monogram generation.
-- `src/pages/index.astro`: static Hub route.
+- `src/components/ui/ThemeToggle.astro` / `SearchModal.astro`: unified `size-8` persistent theme switch and centered Pagefind global/scoped search palette with `Recently viewed` + manifest `Suggested` links, `ArrowDown`/`ArrowUp`/`Enter` keyboard navigation, and dual-theme contrast.
+- `src/utils/theme.ts` & `src/utils/search.ts`: accent validation/monogram helpers and pure search UI breadcrumb/history/suggestion helpers.
+- `src/pages/index.astro`: static Hub route featuring a compact manifest-driven split Hero (primary project CTA, `[data-search-trigger]`, and `Quick Guides` card via `buildQuickSuggestions`) above `CategoryTabs` and `ProjectCard` grid.
 - `src/pages/[product]/[...slug].astro`: manifest/collection route parity; resolves collection file paths to `flatPages` and renders MD/MDX content with helper components.
 - `src/pages/[product]/llms.txt.ts`, `src/pages/llms.txt.ts`, `src/pages/robots.txt.ts`, `src/pages/404.astro`: static AI indexes (with YAML frontmatter stripped via `gray-matter`), crawler instructions, and fallback page.
 
 ## Automation
 
 - `scripts/add-project.mjs`: interactive validated registry writer. Reads categories, rejects duplicate slugs, accepts Git remotes or in-repository local test paths, defaults branch/accent/docsPath (validating against path traversal), enforces paired CTA label/URL configuration, and atomically renames a temporary JSON file.
-- `scripts/export-portal.mjs`: copies the clean source tree to a new external directory, excludes generated/vendor/preset/notes/playwright/artifacts paths, preserves `.gitkeep` and `public/logos/vib-tools.svg`, injects one selected preset, and refuses an existing output path.
-- `scripts/verify-build.mjs`: validates required build artifacts, each manifest route and product `llms.txt`, then checks internal absolute-path and relative-path `href` attributes plus `img[src]` assets in built HTML resolve inside `dist/`.
+- `scripts/export-portal.mjs`: copies the clean source tree to a new external directory, excludes generated/vendor/preset/notes/playwright/artifacts paths, preserves `.gitkeep` and `public/logos/vib-tools.png`, injects one selected preset, and refuses an existing output path.
+- `scripts/verify-build.mjs`: validates required build artifacts (SEO, Cloudflare, favicons, `site.webmanifest`, `og-default.png`, `brandLogo`), each manifest route and product `llms.txt`, then checks internal absolute-path and relative-path `href` attributes plus `img[src]` assets in built HTML resolve inside `dist/`.
 - `templates/github-notify-docs.yml`: GitHub Actions push-to-main/docs-path build-hook caller.
 - `templates/webhook-trigger.sh`: protected environment-variable curl hook for other Git hosts/VPS pipelines.
 

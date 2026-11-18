@@ -73,7 +73,7 @@ function shouldSkip(relativePath) {
     if (normalized.startsWith(`${generatedRoot}/`)) {
       if (
         generatedRoot === "public/logos" &&
-        normalized === "public/logos/vib-tools.svg"
+        normalized === "public/logos/vib-tools.png"
       ) {
         return false;
       }
