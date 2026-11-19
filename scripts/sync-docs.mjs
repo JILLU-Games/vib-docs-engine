@@ -686,8 +686,8 @@ async function syncProject(
     const frontmatter = parsedIndex.data;
     const extracted = vibtoolsHelpers.extractMarkdownMetadata(indexSource);
     const title =
-      metadataString(frontmatter.title, "title", project) ||
       project.title ||
+      metadataString(frontmatter.title, "title", project) ||
       extracted.title ||
       titleFromMarkdown(parsedIndex.content) ||
       formatSlug(project.slug);

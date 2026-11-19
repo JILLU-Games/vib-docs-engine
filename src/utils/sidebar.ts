@@ -126,12 +126,63 @@ export async function buildSidebar(options: SidebarOptions): Promise<{
     };
   }
 
+  function extractIndexLinkOrder(markdownSource: string): Map<string, number> {
+    const orderMap = new Map<string, number>();
+    const linkPattern = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+    let match: RegExpExecArray | null;
+    while ((match = linkPattern.exec(markdownSource)) !== null) {
+      const rawHref = match[1].trim();
+      if (
+        !rawHref ||
+        rawHref.startsWith("#") ||
+        rawHref.startsWith("/") ||
+        /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(rawHref)
+      ) {
+        continue;
+      }
+      const pathPart = rawHref.split(/[?#]/, 1)[0].replace(/^\.\/+/, "");
+      if (!pathPart || pathPart.startsWith("..")) continue;
+      const firstSegment = pathPart.split("/").filter(Boolean)[0];
+      if (!firstSegment) continue;
+      const stem = firstSegment.replace(/\.mdx?$/i, "");
+      if (!stem || /^(?:index|readme)$/i.test(stem)) continue;
+      try {
+        const cleaned = cleanSegment(stem);
+        if (!orderMap.has(cleaned)) {
+          orderMap.set(cleaned, orderMap.size);
+        }
+      } catch {
+        // Ignore non-routable segments
+      }
+    }
+    return orderMap;
+  }
+
+  function itemSegmentKey(item: SidebarNode): string {
+    const parts = item.source.split("/").filter(Boolean);
+    if (item.type === "group") {
+      const folder = parts[parts.length - 1] || item.title;
+      try {
+        return cleanSegment(folder);
+      } catch {
+        return "";
+      }
+    }
+    const file = parts[parts.length - 1] || "";
+    const stem = file.replace(/\.mdx?$/i, "");
+    try {
+      return cleanSegment(stem);
+    } catch {
+      return "";
+    }
+  }
+
   function compareItems(
     left: SidebarNode,
     right: SidebarNode,
-    rootLevel: boolean,
+    linkOrderMap: Map<string, number>,
   ): number {
-    if (rootLevel && left.isIndex !== right.isIndex)
+    if (left.isIndex !== right.isIndex)
       return left.isIndex ? -1 : 1;
     if (left.order !== right.order) {
       if (left.order === undefined) return 1;
@@ -147,6 +198,13 @@ export async function buildSidebar(options: SidebarOptions): Promise<{
         ? Number.POSITIVE_INFINITY
         : Number(right.numericPrefix);
     if (leftPrefix !== rightPrefix) return leftPrefix - rightPrefix;
+    if (linkOrderMap.size > 0) {
+      const leftLinkRank =
+        linkOrderMap.get(itemSegmentKey(left)) ?? Number.POSITIVE_INFINITY;
+      const rightLinkRank =
+        linkOrderMap.get(itemSegmentKey(right)) ?? Number.POSITIVE_INFINITY;
+      if (leftLinkRank !== rightLinkRank) return leftLinkRank - rightLinkRank;
+    }
     return left.title.localeCompare(right.title, undefined, {
       sensitivity: "base",
     });
@@ -178,6 +236,16 @@ export async function buildSidebar(options: SidebarOptions): Promise<{
       readmeKept = true;
       return true;
     });
+    const indexEntry = files.find((entry) =>
+      hasExplicitIndex
+        ? /^index\.mdx?$/i.test(entry.name)
+        : /^readme\.mdx?$/i.test(entry.name),
+    );
+    const linkOrderMap = indexEntry
+      ? extractIndexLinkOrder(
+          await readTextFile(joinPath(directoryPath, indexEntry.name)),
+        )
+      : new Map<string, number>();
     const items: SidebarNode[] = [];
 
     for (const directory of directories) {
@@ -227,7 +295,7 @@ export async function buildSidebar(options: SidebarOptions): Promise<{
       if (page) items.push(page);
     }
 
-    items.sort((left, right) => compareItems(left, right, rootLevel));
+    items.sort((left, right) => compareItems(left, right, linkOrderMap));
     return items;
   }
 

@@ -33,4 +33,5 @@
 | `027-cloudflare-pages-forensic-audit.md`       | Post-release forensic audit of all Cloudflare Pages & Functions deployment logic (`CF2-F01` – `CF2-F13`) | Audit     |
 | `028-cf2-roadmap-and-execution-tracker.md`     | 4-phase scope-locked Cloudflare hardening roadmap & execution tracker (`CF2-Phase 01` – `04`) | Tracker   |
 | `029-ai-readable-vibtools-docs-and-schema.md`  | Plan & verification log for AI-readable `/vib-docs-engine/` guides, hosted JSON Schema, and LLMs index | Plan      |
+| `030-onboard-calgrid-vibdocs.md`               | Audit & onboarding log for `https://github.com/vibdocs/CalGrid` on `docs.vib.tools`          | Plan      |
 
