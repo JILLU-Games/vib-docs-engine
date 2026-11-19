@@ -515,6 +515,12 @@ async function main() {
       }
     }
 
+    if (await exists(path.join(projectRoot, ".github", "README.md"))) {
+      cloudflareErrors.push(
+        ".github/README.md must not exist because GitHub prioritizes .github/README.md over the root /README.md on the repository homepage",
+      );
+    }
+
     const vibtoolsErrors = await validateVibtoolsAndRegistry();
 
     for (const project of manifest.projects ?? []) {

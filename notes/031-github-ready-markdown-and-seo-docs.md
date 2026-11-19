@@ -29,4 +29,6 @@
 
 - Removed temporary `/public/assets/aistudio/` attachment directory so `scripts/verify-build.mjs` remains clean.
 - Rewrote `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, created `SUPPORT.md`, and updated `.github/ISSUE_TEMPLATE/config.yml`, `.github/PULL_REQUEST_TEMPLATE.md`, `MANIFEST.md`, and `project/CHANGELOG.md` using strictly verified facts from `VIB_TOOLS_COMPANY_AUTHOR_MASTER_CONTEXT.md` (no unverified legal/founder/executive claims).
+- Deleted `.github/README.md` and merged its guidance into `.github/MANIFEST.md` because GitHub's README resolution priority (`1. .github/README.md` -> `2. /README.md` -> `3. docs/README.md`) was causing GitHub to display `.github/README.md` ("GitHub Repository Files") on the repository homepage instead of the root `/README.md`.
+
 
