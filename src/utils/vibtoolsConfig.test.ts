@@ -2,15 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { formatVersionBadge } from "./theme";
 import {
+  buildVibtoolsJsonSchema,
   deriveSlugFromSource,
   extractMarkdownMetadata,
   normalizeRegistryEntry,
   parseVibtoolsRepoConfig,
   resolvePortalProjectConfig,
+  VIBTOOLS_SCHEMA_PATH,
 } from "./vibtoolsConfig";
 
 test("parseVibtoolsRepoConfig validates single and dual target configs cleanly", () => {
   const validDual = parseVibtoolsRepoConfig({
+    $schema: "https://docs.vib.tools/schemas/vibtools-docs.schema.json",
     schemaVersion: 1,
     slug: "calgrid",
     title: "CalGrid",
@@ -36,6 +39,10 @@ test("parseVibtoolsRepoConfig validates single and dual target configs cleanly",
 
   assert.equal(validDual.success, true);
   if (validDual.success) {
+    assert.equal(
+      validDual.data.$schema,
+      "https://docs.vib.tools/schemas/vibtools-docs.schema.json",
+    );
     assert.equal(validDual.data.targets?.users?.docsPath, "docs/users");
     assert.equal(validDual.data.targets?.developer?.slug, "calgrid-sdk");
   }
@@ -53,6 +60,9 @@ test("parseVibtoolsRepoConfig rejects path traversal, invalid slug, and invalid 
 
   const badAccent = parseVibtoolsRepoConfig({ accentColor: "purple" });
   assert.equal(badAccent.success, false);
+
+  const emptySchema = parseVibtoolsRepoConfig({ $schema: "   " });
+  assert.equal(emptySchema.success, false);
 });
 
 test("normalizeRegistryEntry supports bare repoUrl strings and rejects embedded credentials", () => {
@@ -255,5 +265,22 @@ test("formatVersionBadge normalizes leading v prefixes cleanly", () => {
   assert.equal(formatVersionBadge(""), "");
   assert.equal(formatVersionBadge("v"), "");
   assert.equal(formatVersionBadge(undefined), "");
+});
+
+test("buildVibtoolsJsonSchema emits Draft 2020-12 schema with canonical $id and target definitions", () => {
+  const schema = buildVibtoolsJsonSchema(
+    `https://docs.vib.tools${VIBTOOLS_SCHEMA_PATH}`,
+  );
+  assert.equal(
+    schema.$schema,
+    "https://json-schema.org/draft/2020-12/schema",
+  );
+  assert.equal(
+    schema.$id,
+    "https://docs.vib.tools/schemas/vibtools-docs.schema.json",
+  );
+  assert.equal(schema.title, "VibToolsDocsConfig");
+  assert.equal(typeof schema.properties, "object");
+  assert.equal(typeof schema.$defs, "object");
 });
 

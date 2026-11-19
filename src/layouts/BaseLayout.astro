@@ -56,6 +56,8 @@ const resolvedAccent = resolveAccentColor(accentColor, siteConfig.defaultAccent)
     <link rel="canonical" href={canonicalUrl} />
     <link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
     <link rel="alternate" type="text/plain" title="LLMs Index" href="/llms.txt" />
+    <link rel="alternate" type="text/plain" title="LLMs Full Documentation" href="/llms-full.txt" />
+    <link rel="describedby" type="application/schema+json" title="VibTools Docs Config JSON Schema" href="/schemas/vibtools-docs.schema.json" />
     {alternateLinks.map((alt) => (
       <link rel="alternate" type={alt.type} title={alt.title} href={alt.href} />
     ))}

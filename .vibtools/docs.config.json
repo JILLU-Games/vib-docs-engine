@@ -1,4 +1,5 @@
 {
+  "$schema": "https://docs.vib.tools/schemas/vibtools-docs.schema.json",
   "schemaVersion": 1,
   "docsType": "developer",
   "slug": "vib-docs-engine",

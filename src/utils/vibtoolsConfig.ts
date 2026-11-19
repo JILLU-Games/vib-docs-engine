@@ -6,6 +6,7 @@ export type DocsType = (typeof DOCS_TYPES)[number];
 
 export const VIBTOOLS_DIR = ".vibtools";
 export const VIBTOOLS_CONFIG_FILENAMES = ["docs.config.json", "config.docs.json"] as const;
+export const VIBTOOLS_SCHEMA_PATH = "/schemas/vibtools-docs.schema.json";
 export const DEFAULT_DOCS_PATH = "docs";
 export const DEFAULT_BRANCH = "main";
 
@@ -27,6 +28,7 @@ export interface VibtoolsTargetConfig {
 }
 
 export interface VibtoolsRepoConfig extends VibtoolsTargetConfig {
+  $schema?: string;
   schemaVersion?: 1;
   docsType?: DocsType;
   targets?: {
@@ -246,6 +248,13 @@ export function parseVibtoolsRepoConfig(
   if (!base.ok) return { success: false, error: base.error };
 
   const result: VibtoolsRepoConfig = { ...base.data };
+
+  if (raw.$schema !== undefined) {
+    if (typeof raw.$schema !== "string" || !raw.$schema.trim()) {
+      return { success: false, error: "$schema must be a non-empty string" };
+    }
+    result.$schema = raw.$schema.trim();
+  }
 
   if (raw.schemaVersion !== undefined) {
     if (raw.schemaVersion !== 1) {
@@ -618,3 +627,127 @@ export function extractMarkdownMetadata(markdownSource: string): ExtractedMarkdo
     version,
   };
 }
+
+export function buildVibtoolsJsonSchema(
+  schemaId = "https://docs.vib.tools/schemas/vibtools-docs.schema.json",
+): Record<string, unknown> {
+  const targetProperties = {
+    slug: {
+      type: "string",
+      pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      description:
+        "Lowercase URL-safe product slug (e.g. 'licenx', 'socketcore'). Defaults to normalized repository name from repoUrl.",
+    },
+    title: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Display title for the product card and navigation header. Falls back to root index.md frontmatter or first # H1 heading.",
+    },
+    category: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Hub filter category label (e.g. 'Desktop Apps', 'Core Engine', 'SDKs & Modules').",
+    },
+    description: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Concise 1-2 sentence product summary for Hub cards, SEO meta description, and llms.txt index.",
+    },
+    version: {
+      type: ["string", "number"],
+      description:
+        "Displayed release version badge (e.g. '1.2.0'). Leading 'v' is normalized automatically at render time.",
+    },
+    accentColor: {
+      type: "string",
+      pattern: "^#(?:[\\da-fA-F]{3}|[\\da-fA-F]{4}|[\\da-fA-F]{6}|[\\da-fA-F]{8})$",
+      description:
+        "3, 4, 6, or 8 digit hexadecimal CSS accent color (e.g. '#7C3AED' or '#2563EB').",
+    },
+    docsPath: {
+      type: "string",
+      minLength: 1,
+      default: "docs",
+      description:
+        "Relative POSIX folder path inside the repository containing index.md or README.md (e.g. 'docs', 'docs/users', 'docs/dev'). No leading '/', '\\', '..', or '.'.",
+    },
+    logoPath: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Relative POSIX file path to a static SVG or PNG product logo under 2 MB (e.g. '.vibtools/logo.png' or '.vibtools/logo.svg').",
+    },
+    branch: {
+      type: "string",
+      minLength: 1,
+      default: "main",
+      description:
+        "Git branch to sparse-checkout for documentation (defaults to 'main').",
+    },
+    ctaLabel: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Topbar external action button label (e.g. 'View repository', 'Get License'). Ignored unless ctaUrl is also set.",
+    },
+    ctaUrl: {
+      type: "string",
+      format: "uri",
+      pattern: "^https?://",
+      description:
+        "External HTTP or HTTPS URL opened by the topbar CTA button.",
+    },
+  };
+
+  return {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    $id: schemaId,
+    title: "VibToolsDocsConfig",
+    description:
+      "Canonical repository configuration schema (.vibtools/docs.config.json or .vibtools/config.docs.json) for Vib Docs Engine single-portal and dual-portal (docs.vib.tools & developer.vibtools.io) synchronization.",
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      $schema: {
+        type: "string",
+        description:
+          "Optional URI pointing to this JSON Schema (e.g. 'https://docs.vib.tools/schemas/vibtools-docs.schema.json').",
+      },
+      schemaVersion: {
+        const: 1,
+        default: 1,
+        description: "Schema format version marker. Must be 1 when specified.",
+      },
+      docsType: {
+        type: "string",
+        enum: ["users", "developer", "both"],
+        default: "both",
+        description:
+          "Target portal audience: 'users' (docs.vib.tools), 'developer' (developer.vibtools.io), or 'both' (serves both portals).",
+      },
+      ...targetProperties,
+      targets: {
+        type: "object",
+        minProperties: 1,
+        additionalProperties: false,
+        description:
+          "Optional per-portal overrides allowing a single repository to serve different docsPath, slug, title, category, description, accentColor, logoPath, ctaUrl, or branch to docs.vib.tools ('users') and developer.vibtools.io ('developer').",
+        properties: {
+          users: { $ref: "#/$defs/target" },
+          developer: { $ref: "#/$defs/target" },
+        },
+      },
+    },
+    $defs: {
+      target: {
+        type: "object",
+        additionalProperties: false,
+        properties: targetProperties,
+      },
+    },
+  };
+}
+

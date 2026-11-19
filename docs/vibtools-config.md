@@ -1,99 +1,251 @@
 ---
 title: ".vibtools/ Configuration"
-description: "All-in-one repository configuration schema (docs.config.json and config.docs.json) for single and dual-portal Vib Docs Engine sync."
+description: "Complete AI-agent and developer specification for .vibtools/docs.config.json, dual-portal targets, docs/ folder structure, frontmatter rules, and JSON Schema."
+version: "0.1.0"
 ---
 
-# `.vibtools/` Repository Configuration
+# `.vibtools/` & `docs/` Repository Specification (Developer & AI Agent Reference)
 
-Place a `.vibtools/` folder in the root of any product repository so **Vib Docs Engine** can discover its documentation path, portal audience, title, description, version, accent color, CTA links, and brand logo from a single repository URL in `config/projects.json`.
+This document is the canonical specification for setting up `.vibtools/` and `docs/` inside any product repository so **Vib Docs Engine** can automatically sync, validate, categorize, and publish its documentation to **`https://docs.vib.tools`** (User Documentation Portal) and/or **`https://developer.vibtools.io`** (Developer Documentation Portal).
+
+> **For AI Coding Agents:** Everything required to configure a new or existing repository is specified on this page. You can also fetch the raw Markdown at `/vib-docs-engine/vibtools-config.md`, the full engine bundle at `/vib-docs-engine/llms.txt`, or the machine-readable JSON Schema at `/schemas/vibtools-docs.schema.json`.
 
 ---
 
-## 1. Directory layout & filenames
+## 1. Two-Organization Architecture (`vibtoolshq` vs `vibdocs`)
+
+Vib Tools separates public open-source code repositories from private commercial product documentation across two GitHub organizations:
+
+| GitHub Organization | Repository Type | What Lives in the Repo | Typical `docsType` / Target Portal |
+| :--- | :--- | :--- | :--- |
+| **`https://github.com/vibtoolshq`** | Public / Free / Open-Source projects (`LicenX`, `SocketCore`, `KronOTP`, `VPS-MCP`, `UpdatePilot`, `ReadBox`, etc.) | Full open-source project source code + `.vibtools/` + `docs/` | `"developer"` (`developer.vibtools.io`), or `"both"` with `targets.users` + `targets.developer` if also published on `docs.vib.tools` |
+| **`https://github.com/vibdocs`** | Dedicated Public **Docs-Only** repositories for private/commercial projects | **Only** `.vibtools/` + `docs/` (and optional `README.md`). Zero private application source code. | `"users"` (`docs.vib.tools`), or `"both"` if the public docs-only repo includes both end-user and public API/SDK guides |
+
+Why this matters when configuring a repo:
+- Because both `https://github.com/vibtoolshq/*` and `https://github.com/vibdocs/*` repositories are **public**, `config/projects.json` in the documentation portal only needs the bare repository URL string (`"https://github.com/vibtoolshq/<repo>.git"` or `"https://github.com/vibdocs/<repo>.git"`). No `GIT_TOKEN` or `secretKey` is required for public repositories.
+- Even on full source repositories under `github.com/vibtoolshq`, `scripts/sync-docs.mjs` performs a **2-step Git sparse checkout** that downloads only `.vibtools/` first and then only the resolved `docsPath` + `logoPath`. Application source code is never checked out during documentation builds.
+
+---
+
+## 2. Directory Layout & File Naming Rules
+
+### Standard Single-Audience Layout (`docs/`)
+
+Use this layout when the repository targets a single portal (`"docsType": "users"` or `"docsType": "developer"`) or shares the exact same `docs/` folder on both portals:
 
 ```text
 your-product-repo/
 ├── .vibtools/
-│   ├── docs.config.json      # Canonical filename (or config.docs.json)
-│   └── logo.svg              # Optional brand icon (.svg / .png)
-├── docs/
-│   ├── users/                # Optional audience-specific docs directory
-│   └── developer/            # Optional developer docs directory
-└── ...
+│   ├── docs.config.json        # Canonical config file (or config.docs.json — NEVER both)
+│   └── logo.svg                # Optional product logo (.svg, .png, .webp, .avif <= 2 MB)
+└── docs/
+    ├── index.md                # REQUIRED root landing page (or README.md auto-promoted to index.md)
+    ├── 01-getting-started.md   # Ordered top-level guide (numeric prefix stripped from URL & label)
+    ├── 02-configuration.md
+    ├── guides/                 # Subfolder becomes a collapsible sidebar group
+    │   ├── index.md            # Optional subfolder overview (its frontmatter title names the sidebar group)
+    │   ├── installation.md
+    │   └── troubleshooting.md
+    └── assets/                 # Optional images referenced via relative Markdown paths
+        └── workflow.png
 ```
 
-- **Canonical config file:** `.vibtools/docs.config.json`
-- **Supported alias:** `.vibtools/config.docs.json`
-- **Conflict rule:** Commit **either** `docs.config.json` **or** `config.docs.json` inside `.vibtools/`. Keeping both files simultaneously causes `scripts/sync-docs.mjs` and `scripts/verify-build.mjs` to fail cleanly rather than guess which file is authoritative.
-- **Two-step Git sparse checkout:** During `npm run sync`, remote repositories first check out only `.vibtools/` on the registry entry's branch (`main` by default). Once `docsType` / `targets` match the portal's `portalType` (`users`, `developer`, or `all`), if the resolved target defines a different `branch`, `scripts/sync-docs.mjs` fetches and switches to that branch before sparse-checking out only the resolved `docsPath` (and custom `logoPath` parent folder, if outside `docsPath`). Application source code is never checked out.
+### Dual-Audience Split Layout (`docs/users/` + `docs/dev/`)
+
+Use this layout when a single repository (for example `https://github.com/vibtoolshq/LicenX`) serves **end-user guides** to `https://docs.vib.tools` and **developer/API docs** to `https://developer.vibtools.io` from separate subdirectories:
+
+```text
+your-product-repo/
+├── .vibtools/
+│   ├── docs.config.json        # Uses "docsType": "both" with "targets": { "users": {...}, "developer": {...} }
+│   └── logo.svg
+└── docs/
+    ├── users/                  # Checked out ONLY by docs.vib.tools (portalType: "users")
+    │   ├── index.md            # REQUIRED root landing page for end-user docs
+    │   └── 01-quickstart.md
+    └── dev/                    # Checked out ONLY by developer.vibtools.io (portalType: "developer")
+        ├── index.md            # REQUIRED root landing page for developer docs
+        └── 01-architecture.md
+```
+
+### Strict File Rules for `.vibtools/`
+
+1. **Canonical filename:** `.vibtools/docs.config.json`
+2. **Supported alias:** `.vibtools/config.docs.json`
+3. **Conflict guard (Fatal Build Error):** Commit **either** `docs.config.json` **or** `config.docs.json` inside `.vibtools/`. If both files exist simultaneously, `scripts/sync-docs.mjs` and `scripts/verify-build.mjs` reject the repository with an explicit conflict error.
+4. **JSON validity:** Must be strict, valid JSON (UTF-8, no trailing commas, no `//` comments).
 
 ---
 
-## 2. Config file reference (`docs.config.json` / `config.docs.json`)
+## 3. Complete `.vibtools/docs.config.json` Field Reference
 
-Every field below is verified by `src/utils/vibtoolsConfig.ts` during sync and `npm run verify`:
+Every field is validated by `parseVibtoolsRepoConfig` in `src/utils/vibtoolsConfig.ts` and matched against `/schemas/vibtools-docs.schema.json`:
 
-| Field | Type | Applies To | Default / Behavior |
-| :--- | :--- | :--- | :--- |
-| `schemaVersion` | `1` | Root | Optional format marker (`1`). Any other value fails validation. |
-| `docsType` | `"users" \| "developer" \| "both"` | Root | Optional audience filter (`"both"` when omitted). Matched against `config/site.config.json` `portalType` (`"users"`, `"developer"`, or `"all"`). |
-| `slug` | `string` | Root or Target | Lowercase URL-safe slug (`^[a-z0-9]+(?:-[a-z0-9]+)*$`). Defaults to normalized repository name from `repoUrl` when omitted. |
-| `title` | `string` | Root or Target | Product card and navigation title fallback when Markdown frontmatter does not specify `title`. |
-| `category` | `string` | Root or Target | Hub filter category label. Defaults to `"Developer Docs"` for `developer` targets or `"Documentation"` otherwise. |
-| `description` | `string` | Root or Target | Short summary for Hub card and SEO fallback when frontmatter lacks `description`. |
-| `version` | `string \| number` | Root or Target | Displayed release/version badge (stored as trimmed string, e.g. `"1.2.0"`). |
-| `accentColor` | `string` | Root or Target | 3, 4, 6, or 8 digit CSS hex color (e.g. `"#7C3AED"`). Falls back to `site.defaultAccent`. |
-| `docsPath` | `string` | Root or Target | Relative POSIX directory path inside the repository (no leading `/`, no `\`, no `..`, not `.`). Defaults to `"docs"`. |
-| `logoPath` | `string` | Root or Target | Relative POSIX file path inside the repository (e.g. `".vibtools/logo.svg"`). Checked first before standard logo auto-discovery. |
-| `branch` | `string` | Root or Target | Git branch to sparse-clone (`"main"` when omitted; spaces, `\`, and `..` rejected). |
-| `ctaLabel` | `string` | Root or Target | Button label shown in the top bar (defaults to `"Open"` when `ctaUrl` is set without `ctaLabel`). |
-| `ctaUrl` | `string` | Root or Target | External HTTP or HTTPS CTA link (`ctaLabel` is ignored unless `ctaUrl` is set). |
-| `targets` | `{ users?: Target; developer?: Target }` | Root | Optional per-portal overrides so one repository can serve `docs.vib.tools` and `developer.vibtools.io` with different `docsPath`, `slug`, `category`, `title`, `description`, `accentColor`, `logoPath`, `ctaUrl`, or `branch`. Must define at least one of `users` or `developer`. |
-
----
-
-## 3. Portal filtering & metadata precedence
-
-### Portal matching rules
-
-`config/site.config.json` defines `"portalType"`:
-- `"users"` (e.g., `docs.vib.tools`): Includes entries whose `.vibtools/` has `targets.users`, `docsType: "users"`, or `docsType: "both"` (or legacy repos without `.vibtools/` unless `docsType: "developer"`). Developer-only repositories in a shared list are cleanly skipped (`Skipped ...`), not treated as build errors.
-- `"developer"` (e.g., `developer.vibtools.io`): Includes entries whose `.vibtools/` has `targets.developer`, `docsType: "developer"`, or `docsType: "both"`. User-only repositories are skipped.
-- `"all"` (default combined engine config): Includes all entries; if a repository defines both `targets.users` and `targets.developer`, setting an override `"docsType": "developer"` or `"docsType": "users"` on that entry in `config/projects.json` selects that matching target cleanly (otherwise `targets.users` is preferred). If a repository defines only one key under `targets`, that target is selected automatically.
-
-### Resolution priority
-
-1. **Portal registry override:** Fields explicitly set on an object inside `config/projects.json` always take highest precedence.
-2. **`.vibtools/` active target:** `targets.users` or `targets.developer` matching the portal's `portalType`.
-3. **`.vibtools/` root fields:** Shared root properties in `docs.config.json` / `config.docs.json`.
-4. **Markdown frontmatter & Smart Markdown extraction:** For `title`, `description`, and `version` at render time, `scripts/sync-docs.mjs` resolves `index.md` YAML frontmatter -> `.vibtools/` / `projects.json` metadata -> **Smart Markdown extraction** (first `# H1` heading stripped of trailing `— User Documentation` / `— Docs` suffixes, first clean prose paragraph capped cleanly to `~160` chars, and semantic `vX.Y.Z` / `Version: X.Y.Z` detection).
-
-This means standard Markdown docs without YAML frontmatter still populate clean titles, summaries, and version badges on the Hub automatically.
+| Field | Type | Scope | Validation Constraint | Default / Fallback Behavior |
+| :--- | :--- | :--- | :--- | :--- |
+| `$schema` | `string` | Root only | Non-empty URI string | Optional. Set to `"https://docs.vib.tools/schemas/vibtools-docs.schema.json"` (or `"https://developer.vibtools.io/schemas/vibtools-docs.schema.json"`). |
+| `schemaVersion` | `1` (integer) | Root only | Must equal exact integer `1` | Optional (`1`). Any other value fails validation. |
+| `docsType` | `"users" \| "developer" \| "both"` | Root only | Exact enum string | Defaults to `"both"` (or inferred from `targets` keys if only one target key is defined). |
+| `slug` | `string` | Root & Target | `^[a-z0-9]+(?:-[a-z0-9]+)*$` (lowercase alphanumeric + single hyphens) | Derived automatically from the repository name in `repoUrl` (e.g., `LicenX.git` -> `"licenx"`). |
+| `title` | `string` | Root & Target | Non-empty trimmed string | Used for Hub card and topbar title when `index.md` frontmatter lacks `title`. |
+| `category` | `string` | Root & Target | Non-empty trimmed string | Hub category filter tab. Defaults to `"Developer Docs"` when `docsType === "developer"`, otherwise `"Documentation"`. |
+| `description` | `string` | Root & Target | Non-empty trimmed string | Used for Hub card summary and `<meta name="description">` when `index.md` lacks `description`. |
+| `version` | `string \| number` | Root & Target | Non-empty string or finite number | Normalized to string. Displayed in Hub & Topbar version badge (leading `v`/`V` is normalized automatically so `"0.1.0"` and `"v0.1.0"` both render as `v0.1.0`). |
+| `accentColor` | `string` | Root & Target | `^#(?:[\da-fA-F]{3}\|[\da-fA-F]{4}\|[\da-fA-F]{6}\|[\da-fA-F]{8})$` | Product brand accent color (e.g., `"#7C3AED"`). Falls back to `site.defaultAccent` from `config/site.config.json`. |
+| `docsPath` | `string` | Root & Target | Relative POSIX directory path inside repo. Must **not** start with `/`, contain `\`, contain `..`, or equal `.` | Defaults to `"docs"`. Examples: `"docs"`, `"docs/users"`, `"docs/dev"`, `"packages/sdk/docs"`. |
+| `logoPath` | `string` | Root & Target | Relative POSIX file path inside repo. Must **not** start with `/`, contain `\`, contain `..`, or equal `.` | Optional (e.g. `".vibtools/logo.svg"` or `".vibtools/logo.png"`). Checked before automatic logo discovery. |
+| `branch` | `string` | Root & Target | Non-empty Git branch name. Must **not** contain whitespace, `\`, or `..` | Defaults to `"main"`. If a target overrides `branch`, `scripts/sync-docs.mjs` fetches and switches sparse checkout to that branch before checking out `docsPath`. |
+| `ctaLabel` | `string` | Root & Target | Non-empty trimmed string | Topbar external action button label (defaults to `"Open"` when `ctaUrl` is defined without `ctaLabel`). Ignored if `ctaUrl` is omitted. |
+| `ctaUrl` | `string` | Root & Target | Valid absolute `http://` or `https://` URL | Topbar external button destination (e.g., `"https://github.com/vibtoolshq/LicenX"` or `"https://vib.tools/licenx"`). |
+| `targets` | `object` | Root only | Object containing `"users"` and/or `"developer"` target override objects (`minProperties: 1`, `additionalProperties: false`) | Optional per-portal overrides. Any field set inside `targets.users` or `targets.developer` overrides the root field on that portal. |
 
 ---
 
-## 4. Logo discovery & security rules
+## 4. Portal Routing & Metadata Precedence Rules
 
-When `scripts/sync-docs.mjs` resolves a product logo, it checks paths in this order:
-1. Explicit `logoPath` (from `projects.json` -> `.vibtools/` target -> `.vibtools/` root)
-2. `.vibtools/logo.svg`, `.vibtools/logo.png`, `.vibtools/icon.svg`, `.vibtools/icon.png`
-3. `<docsPath>/logo.*`, `<docsPath>/icon.*`, `<docsPath>/assets/*`, `<docsPath>/images/*`
+### How `portalType` Matches `docsType` and `targets`
 
-Security & validation checks enforced on every logo candidate:
+Each portal deployment sets `"portalType"` inside its `config/site.config.json`:
+
+1. **`docs.vib.tools` (`"portalType": "users"`)**:
+   - **Includes** repositories where:
+     - `targets.users` is defined, OR
+     - `docsType` is `"users"` or `"both"` (and `targets` does not restrict exclusively to `developer`).
+   - **Skips** repositories where `docsType` is `"developer"` (and `targets.users` is not defined). Skipped repositories log a clean `Skipped ...` notice and do not fail the build.
+2. **`developer.vibtools.io` (`"portalType": "developer"`)**:
+   - **Includes** repositories where:
+     - `targets.developer` is defined, OR
+     - `docsType` is `"developer"` or `"both"` (and `targets` does not restrict exclusively to `users`).
+   - **Skips** repositories where `docsType` is `"users"` (and `targets.developer` is not defined).
+3. **Combined / Preview Portal (`"portalType": "all"`)**:
+   - **Includes** all repositories.
+   - If a repository defines both `targets.users` and `targets.developer`, an explicit `"docsType": "developer"` or `"docsType": "users"` on the entry in `config/projects.json` selects that target; otherwise `targets.users` is selected by default.
+
+### Metadata Resolution Order (Highest to Lowest Priority)
+
+When resolving `slug`, `docsPath`, `logoPath`, `branch`, `category`, `accentColor`, `ctaLabel`, and `ctaUrl`:
+1. **`config/projects.json` explicit override field** (if the portal registry entry is an object instead of a bare URL string)
+2. **`.vibtools/` active target** (`targets.users` on user portal, `targets.developer` on developer portal)
+3. **`.vibtools/` root fields**
+4. **Engine defaults** (`branch: "main"`, `docsPath: "docs"`, `slug` from `repoUrl`, `category: "Documentation"` or `"Developer Docs"`)
+
+When resolving display `title`, `description`, and `version` for a product:
+1. **Root `index.md` YAML frontmatter** (`title` if not `"Overview"`, `description`, `version`)
+2. **Resolved `.vibtools/` / `config/projects.json` metadata** (`title`, `description`, `version`)
+3. **Smart Markdown Extraction fallback** (`extractMarkdownMetadata` in `src/utils/vibtoolsConfig.ts`):
+   - **Title:** First `# H1` heading in `index.md`, automatically stripping noisy suffixes like `— User Documentation`, `- Developer Docs`, or `| Documentation`.
+   - **Description:** First clean prose paragraph (skipping badges, tables, blockquotes, HTML tags, and boilerplate headings), stripped of inline Markdown syntax and truncated cleanly at a word boundary around `160` characters.
+   - **Version:** First `Version: X.Y.Z`, `Release: vX.Y.Z`, or standalone `vX.Y.Z` semantic version badge found in the opening lines.
+
+---
+
+## 5. `docs/` Authoring Rules & Markdown/MDX Contract
+
+Every AI agent and developer authoring files inside `docsPath` (`docs/`, `docs/users/`, `docs/dev/`) must follow these rules so `scripts/sync-docs.mjs`, `src/utils/sidebar.ts`, and Astro Content Collections compile without errors:
+
+### 5.1 Mandatory Root `index.md` (or `README.md`)
+
+- Every configured `docsPath` **must** have a root `index.md`, `index.mdx`, `README.md`, or `README.mdx`.
+- If a directory contains `README.md` and no `index.md`, `scripts/sync-docs.mjs` automatically renames `README.md` -> `index.md`.
+- If a directory contains **both** `index.md` and `README.md`, `index.md` is kept and `README.md` is deleted to prevent duplicate route collisions.
+- In the left sidebar, the root `index.md` is always rendered first with the label **`Overview`**, while the page's `<title>` and `<h1>` use the frontmatter `title` (or `.vibtools` product title).
+
+### 5.2 Supported Frontmatter Fields (`.md` / `.mdx`)
+
+All frontmatter fields are optional in `src/content.config.ts`, except `draft` must be a boolean if present:
+
+```yaml
+---
+title: "Configuration Guide"
+description: "Configure environment variables, webhooks, and runtime options."
+version: "1.2.0"
+order: 2
+category: "Core Engine"
+draft: false
+---
+```
+
+| Frontmatter Key | Type | Effect |
+| :--- | :--- | :--- |
+| `title` | `string` | Page `<h1>`, HTML `<title>`, OpenGraph title, and sidebar link label (root `index.md` keeps `"Overview"` as its sidebar link label). |
+| `description` | `string` | Meta description, OpenGraph description, and `/llms.txt` page summary. |
+| `version` | `string` | Product version read from the root `index.md` (e.g. `"1.2.0"`). |
+| `order` | `number` | Explicit sidebar sort priority within its folder (lower numbers appear first; pages with `order` sort before pages without `order`). |
+| `category` | `string` | Optional metadata tag. |
+| `draft` | `boolean` | When `draft: true`, `scripts/sync-docs.mjs` completely removes the file during sync so it is never published, routed, or indexed. **Must be an unquoted YAML boolean (`true` or `false`), never a string `"true"`.** |
+
+### 5.3 File & Folder Ordering, URL Slugs, and Subfolder Groups
+
+- **Numeric filename prefixes:** You can prefix filenames or folders with `NN-` or `NN_` (e.g., `01-quickstart.md`, `02-api-reference.md`).
+  - `src/utils/sidebar.ts` uses the numeric prefix for sorting (`01` before `02`), and **strips** the prefix from both the generated URL route (`/product/quickstart/`) and the humanized sidebar title (`Quickstart`).
+- **Subfolders (`docs/guides/...`):**
+  - Every subfolder containing Markdown files becomes a collapsible sidebar section.
+  - To customize a subfolder's sidebar group title, add an `index.md` inside that subfolder with a frontmatter `title` (for example `title: "Advanced Guides"`). Otherwise, the folder name is humanized (`02-api-guides` -> `Api Guides`).
+- **Route collision guard:** Two files in the same folder that normalize to the same slug (for example `01-setup.md` and `02-setup.md`) will fail the build with a duplicate route collision error. Keep normalized slugs unique per directory.
+
+### 5.4 Governance Files (`MANIFEST.md`) Inside `docs/`
+
+- `scripts/sync-docs.mjs` automatically strips any file named `MANIFEST.md` (case-insensitive) from synced documentation trees so repository inventory files never pollute public documentation sidebars.
+- **Warning:** Always spell manifest files exactly `MANIFEST.md`. A misspelled filename like `MINIFEST.md` will **not** be stripped and will be published as a public documentation page.
+
+### 5.5 Internal Links & Relative Images
+
+- **Internal Markdown links:** You may link between pages using either relative Markdown filenames (`[Adding Projects](adding-projects.md)` or `[Setup](./01-setup.md#install)`) or root-relative routes (`[Adding Projects](/vib-docs-engine/adding-projects/)`). The `rewriteInternalMarkdownLinks` Remark plugin in `astro.config.mjs` automatically rewrites relative `.md`/`.mdx` links into clean normalized Astro routes while preserving `#hash` anchors and `?query` parameters.
+- **Images & relative assets:** Place diagrams or screenshots inside `docs/assets/` (or any subfolder of `docsPath`) and reference them with relative Markdown image syntax (`![Architecture](./assets/diagram.png)`). `scripts/verify-build.mjs` verifies every internal `href` and `img[src]` in `dist/` and fails the build if any link or image is broken.
+
+### 5.6 Built-In MDX Components (`.mdx` files only)
+
+When a file uses the `.mdx` extension, you can import the engine's built-in interactive components:
+
+```mdx
+import Callout from "../../../components/mdx/Callout.astro";
+import CodeTabs from "../../../components/mdx/CodeTabs.astro";
+
+<Callout type="tip" title="Zero-Config Sync">
+  Bare repository URLs in `config/projects.json` automatically read `.vibtools/docs.config.json`.
+</Callout>
+
+<CodeTabs labels={["npm", "pnpm"]}>
+  ```sh
+  npm run sync
+  ```
+  ```sh
+  pnpm run sync
+  ```
+</CodeTabs>
+```
+
+- `Callout`: `type` supports `"info"` (default), `"tip"`, `"warning"`, or `"danger"`, plus optional `title`.
+- `CodeTabs`: `labels` accepts an array of tab names matching the child code blocks.
+
+---
+
+## 6. Logo Discovery & Security Validation Rules
+
+When `scripts/sync-docs.mjs` resolves a product logo, it checks candidate paths in this exact order:
+
+1. Explicit `logoPath` (from `config/projects.json` override -> `.vibtools/` active target -> `.vibtools/` root)
+2. `.vibtools/logo.svg`, `.vibtools/logo.png`, `.vibtools/logo.webp`, `.vibtools/logo.avif`, `.vibtools/icon.svg`, `.vibtools/icon.png`
+3. `<docsPath>/logo.*`, `<docsPath>/icon.*`, `<docsPath>/assets/logo.*`, `<docsPath>/images/logo.*`
+
+Every logo candidate must pass these security checks:
 - Must resolve inside the repository root (`assertWithin`) with zero symlinks (`fs.lstat`).
-- Maximum file size is `2 MB`.
-- `.png` files must carry valid 8-byte PNG headers.
-- `.svg` files must reject `<script>`, `<foreignObject>`, inline `on*=` attributes, and external `href` / `xlink:href` / `src` URIs.
-- Invalid or missing custom logos log a warning and fall back cleanly to standard discovery or a UI monogram instead of breaking the docs build.
+- Maximum file size: **`2 MB`** (`2,097,152` bytes).
+- `.png` files must start with the valid 8-byte PNG signature (`89 50 4E 47 0D 0A 1A 0A`).
+- `.svg` files must be static XML/SVG and are rejected if they contain `<script>`, `<foreignObject>`, inline `on*=` event handlers, `javascript:`/`data:text/html` URIs, or external `http://`/`https://` references.
+- If no logo exists (or if a candidate fails validation), the engine logs a warning and renders a deterministic 2-letter product monogram badge using `accentColor`.
 
 ---
 
-## 5. Copy-paste templates
+## 7. Production Copy-Paste Templates
 
-### Example A — Single portal (End-user app on `docs.vib.tools`)
+### Template A — Public Docs-Only Repo in `github.com/vibdocs` (`docs.vib.tools`)
+
+Use this in `https://github.com/vibdocs/<product>` for private/commercial apps whose user documentation is published on `https://docs.vib.tools`:
 
 ```json
 {
+  "$schema": "https://docs.vib.tools/schemas/vibtools-docs.schema.json",
   "schemaVersion": 1,
   "docsType": "users",
   "slug": "calgrid",
@@ -104,117 +256,187 @@ Security & validation checks enforced on every logo candidate:
   "accentColor": "#2563EB",
   "docsPath": "docs",
   "logoPath": ".vibtools/logo.png",
+  "branch": "main",
   "ctaLabel": "Get CalGrid",
   "ctaUrl": "https://vib.tools/calgrid"
 }
 ```
 
-### Example B — Developer tool / SDK (Developer portal on `developer.vibtools.io`)
+### Template B — Open-Source Repo in `github.com/vibtoolshq` (`developer.vibtools.io`)
+
+Use this in `https://github.com/vibtoolshq/<repo>` for open-source tools, SDKs, or servers published on `https://developer.vibtools.io`:
 
 ```json
 {
+  "$schema": "https://developer.vibtools.io/schemas/vibtools-docs.schema.json",
   "schemaVersion": 1,
   "docsType": "developer",
-  "slug": "vib-docs-engine",
-  "title": "Vib Docs Engine",
-  "category": "Core Engine",
-  "description": "A static multi-product documentation engine.",
-  "version": "0.1.0",
-  "accentColor": "#7C3AED",
+  "slug": "socketcore",
+  "title": "SocketCore",
+  "category": "Core Infrastructure",
+  "description": "High-throughput WebSocket and event transport core for Vib Tools services.",
+  "version": "1.0.0",
+  "accentColor": "#0EA5E9",
   "docsPath": "docs",
-  "logoPath": ".vibtools/logo.png",
+  "logoPath": ".vibtools/logo.svg",
   "branch": "main",
-  "ctaLabel": "View repository",
-  "ctaUrl": "https://github.com/JILLU-Games/vib-docs-engine"
+  "ctaLabel": "GitHub",
+  "ctaUrl": "https://github.com/vibtoolshq/SocketCore"
 }
 ```
 
-### Example C — Dual-portal repository (One repo serving both domains)
+### Template C — Dual-Portal Open-Source Repo in `github.com/vibtoolshq` (Both Portals)
+
+Use this when a repository under `https://github.com/vibtoolshq/<repo>` (such as `LicenX`) maintains separate end-user docs (`docs/users`) for `https://docs.vib.tools` and developer docs (`docs/dev`) for `https://developer.vibtools.io`:
 
 ```json
 {
+  "$schema": "https://docs.vib.tools/schemas/vibtools-docs.schema.json",
   "schemaVersion": 1,
   "docsType": "both",
-  "title": "Invio",
-  "version": "2.4.0",
+  "slug": "licenx",
+  "title": "LicenX",
+  "version": "1.0.0",
   "logoPath": ".vibtools/logo.svg",
+  "branch": "main",
   "targets": {
     "users": {
-      "slug": "invio",
-      "category": "Desktop Apps",
-      "description": "Desktop guides and workspace setup for Invio.",
+      "slug": "licenx",
+      "title": "LicenX",
+      "category": "License Management",
+      "description": "End-user dashboard guide, license activation flows, and billing setup for LicenX.",
       "accentColor": "#7C3AED",
       "docsPath": "docs/users",
-      "ctaLabel": "Download",
-      "ctaUrl": "https://vib.tools/invio"
+      "ctaLabel": "Open LicenX",
+      "ctaUrl": "https://vib.tools/licenx"
     },
     "developer": {
-      "slug": "invio-sdk",
-      "title": "Invio SDK",
-      "category": "SDKs & Engines",
-      "description": "Plugin API, CLI hooks, and webhook integration reference.",
+      "slug": "licenx",
+      "title": "LicenX Developer Guide",
+      "category": "SDKs & APIs",
+      "description": "Self-hosted deployment, webhook verification, and SDK integration reference for LicenX.",
       "accentColor": "#0EA5E9",
-      "docsPath": "docs/developer",
+      "docsPath": "docs/dev",
       "ctaLabel": "GitHub",
-      "ctaUrl": "https://github.com/vibdocs/invio-docs"
+      "ctaUrl": "https://github.com/vibtoolshq/LicenX"
     }
   }
 }
 ```
 
-### Minimal `config/projects.json` registration
+### Portal `config/projects.json` Registration
 
-When the product repo includes `.vibtools/docs.config.json` (or `.vibtools/config.docs.json`), `config/projects.json` needs only the repository URL string:
+Once `.vibtools/docs.config.json` is committed in the product repository, register the repo in the portal's `config/projects.json` using just its Git URL:
 
 ```json
 [
-  "https://github.com/vibdocs/calgrid.git",
-  "https://github.com/vibdocs/invio-docs.git",
-  {
-    "repoUrl": "https://github.com/my-org/private-sdk.git",
-    "secretKey": "$GIT_TOKEN_PRIVATE_SDK"
-  }
+  "https://github.com/vibtoolshq/LicenX.git",
+  "https://github.com/vibtoolshq/SocketCore.git",
+  "https://github.com/vibdocs/calgrid.git"
 ]
 ```
 
-Or register via CLI in one command:
+Or add it via CLI:
 
 ```sh
-npm run add-project -- --url https://github.com/vibdocs/calgrid.git
+npm run add-project -- --url https://github.com/vibtoolshq/LicenX.git
 ```
 
 ---
 
-## 6. JSON Schema reference (Draft 2020-12)
+## 8. Canonical JSON Schema (Draft 2020-12)
 
-Editors supporting `$schema` or local schema validation can reference the canonical contract enforced by `parseVibtoolsRepoConfig` in `src/utils/vibtoolsConfig.ts`:
+This schema is hosted live at `/schemas/vibtools-docs.schema.json` on both `https://docs.vib.tools/schemas/vibtools-docs.schema.json` and `https://developer.vibtools.io/schemas/vibtools-docs.schema.json`:
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.vib.tools/schemas/vibtools-docs.schema.json",
   "title": "VibToolsDocsConfig",
+  "description": "Repository-level .vibtools/docs.config.json (or .vibtools/config.docs.json) contract for Vib Docs Engine single-portal and dual-portal documentation sync.",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "docsType": { "enum": ["users", "developer", "both"] },
-    "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
-    "title": { "type": "string", "minLength": 1 },
-    "category": { "type": "string", "minLength": 1 },
-    "description": { "type": "string", "minLength": 1 },
-    "version": { "type": ["string", "number"] },
+    "$schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional JSON Schema reference URL (for example https://docs.vib.tools/schemas/vibtools-docs.schema.json)."
+    },
+    "schemaVersion": {
+      "const": 1,
+      "description": "Schema format version marker. Must be 1 when provided."
+    },
+    "docsType": {
+      "type": "string",
+      "enum": ["users", "developer", "both"],
+      "default": "both",
+      "description": "Target portal audience: 'users' (docs.vib.tools), 'developer' (developer.vibtools.io), or 'both'."
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "description": "Lowercase URL-safe product route slug (e.g. 'licenx', 'socket-core'). Defaults to the normalized repository name."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Display name of the product shown on Hub cards, breadcrumbs, and topbar."
+    },
+    "category": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Hub category tab label (e.g. 'Core Engine', 'SDKs & CLI', 'Desktop Apps')."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Concise product summary for Hub cards, SEO meta tags, and llms.txt indexes."
+    },
+    "version": {
+      "type": ["string", "number"],
+      "description": "Product release or docs version badge (e.g. '1.2.0')."
+    },
     "accentColor": {
       "type": "string",
-      "pattern": "^#(?:[\\da-fA-F]{3}|[\\da-fA-F]{4}|[\\da-fA-F]{6}|[\\da-fA-F]{8})$"
+      "pattern": "^#(?:[\\da-fA-F]{3}|[\\da-fA-F]{4}|[\\da-fA-F]{6}|[\\da-fA-F]{8})$",
+      "description": "CSS hex accent color (#RGB, #RGBA, #RRGGBB, or #RRGGBBAA)."
     },
-    "docsPath": { "type": "string", "minLength": 1 },
-    "logoPath": { "type": "string", "minLength": 1 },
-    "branch": { "type": "string", "minLength": 1 },
-    "ctaLabel": { "type": "string", "minLength": 1 },
-    "ctaUrl": { "type": "string", "format": "uri" },
+    "docsPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!\\.$)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$",
+      "default": "docs",
+      "description": "Relative POSIX directory path to Markdown/MDX documentation inside the repository (e.g. 'docs', 'docs/users', 'docs/dev')."
+    },
+    "logoPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!\\.$)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$",
+      "description": "Relative POSIX file path to the product logo (.svg, .png, .webp, .avif under 2 MB, e.g. '.vibtools/logo.svg')."
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!.*\\s)(?!.*\\\\)(?!.*\\.\\.).+$",
+      "default": "main",
+      "description": "Git branch to sparse-clone during documentation sync."
+    },
+    "ctaLabel": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Topbar external CTA button label (defaults to 'Open' when ctaUrl is set)."
+    },
+    "ctaUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "Absolute HTTP/HTTPS destination URL for the topbar CTA button."
+    },
     "targets": {
       "type": "object",
       "minProperties": 1,
       "additionalProperties": false,
+      "description": "Optional per-portal overrides when a single repository serves both docs.vib.tools ('users') and developer.vibtools.io ('developer').",
       "properties": {
         "users": { "$ref": "#/$defs/target" },
         "developer": { "$ref": "#/$defs/target" }
@@ -224,8 +446,12 @@ Editors supporting `$schema` or local schema validation can reference the canoni
   "$defs": {
     "target": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
         "title": { "type": "string", "minLength": 1 },
         "category": { "type": "string", "minLength": 1 },
         "description": { "type": "string", "minLength": 1 },
@@ -234,13 +460,46 @@ Editors supporting `$schema` or local schema validation can reference the canoni
           "type": "string",
           "pattern": "^#(?:[\\da-fA-F]{3}|[\\da-fA-F]{4}|[\\da-fA-F]{6}|[\\da-fA-F]{8})$"
         },
-        "docsPath": { "type": "string", "minLength": 1 },
-        "logoPath": { "type": "string", "minLength": 1 },
-        "branch": { "type": "string", "minLength": 1 },
+        "docsPath": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!\\.$)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        },
+        "logoPath": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!\\.$)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!.*\\s)(?!.*\\\\)(?!.*\\.\\.).+$"
+        },
         "ctaLabel": { "type": "string", "minLength": 1 },
-        "ctaUrl": { "type": "string", "format": "uri" }
+        "ctaUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://"
+        }
       }
     }
   }
 }
 ```
+
+---
+
+## 9. AI Agent Self-Verification Checklist (10 Points)
+
+Before finishing `.vibtools/` and `docs/` setup in any product repository, verify all 10 items:
+
+1. **Single Config File:** Only `.vibtools/docs.config.json` exists (not both `docs.config.json` and `config.docs.json`).
+2. **Valid JSON & Schema:** `.vibtools/docs.config.json` parses with `JSON.parse()`, includes `"$schema": "https://docs.vib.tools/schemas/vibtools-docs.schema.json"` and `"schemaVersion": 1`, and contains zero unknown keys.
+3. **Correct `docsType` & `targets`:** `"docsType"` is `"users"`, `"developer"`, or `"both"`. If the repository splits `docs/users` and `docs/dev`, `"targets"` defines both `"users"` and `"developer"` with their respective `"docsPath"`.
+4. **Valid `slug` & `accentColor`:** `"slug"` is lowercase kebab-case (`^[a-z0-9]+(?:-[a-z0-9]+)*$`) and `"accentColor"` is a valid CSS hex string (`#RRGGBB`).
+5. **Safe Relative `docsPath` & `logoPath`:** Neither path starts with `/`, contains `\`, contains `..`, or equals `.`.
+6. **Root `index.md` Exists:** Every configured `docsPath` directory contains a root `index.md` (or `README.md`) with clear title, description, and body content.
+7. **Valid YAML Frontmatter:** Every `.md`/`.mdx` file with frontmatter has valid YAML delimiters (`---`), and any `draft` field is a boolean (`true`/`false`), not a string.
+8. **No Stray Typo Manifests:** Any directory manifest inside `docs/` is named `MANIFEST.md` (which is auto-stripped), never misspelled as `MINIFEST.md`.
+9. **Working Relative Links & Assets:** Every internal Markdown link (`[Guide](guide.md)`) and image (`![Img](./assets/img.png)`) points to an existing file inside `docsPath`.
+10. **Logo Compliance:** If `logoPath` is set, the file exists at that exact path, is under `2 MB`, and (if `.svg`) contains zero `<script>`, `<foreignObject>`, event handlers, or external URLs.

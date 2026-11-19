@@ -865,6 +865,9 @@ async function main() {
     path.join(generatedOutput, "manifest.json"),
     `${JSON.stringify(manifest, null, 2)}\n`,
   );
+  for (const strayBunLock of ["bun.lock", "bun.lockb"]) {
+    await fs.rm(path.join(projectRoot, strayBunLock), { force: true });
+  }
   console.log(`Wrote manifest for ${syncedProjects.length} project(s)`);
 }
 

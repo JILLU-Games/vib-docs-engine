@@ -72,7 +72,9 @@
   2. Deleted conflicting root `/bun.lock` and added `bun.lock` / `bun.lockb` to `.gitignore` and `.dockerignore` (`CF2-F11`).
   3. Regenerated `/package-lock.json` cleanly from the npm registry (`511` total packages, `505` with `resolved` + `integrity` hashes, `156` cross-platform optional binaries, `engines.node: ">=22.23.4"`) (`CF2-F12`).
   4. Deleted `/public/assets/aistudio` screenshots (`Screenshot_1_cdbfd185.png`, `Screenshot_2_382ee993.png`, `Screenshot_5_a9fc5312.png`), ignored `.aistudio/` and `public/assets/aistudio/` in `.gitignore`, `.dockerignore`, and `scripts/export-portal.mjs`, extended `astro.config.mjs` post-build pruning to remove `dist/assets/aistudio`, and added automated assertions in `scripts/verify-build.mjs` (`CF2-F13`).
-- **Files Modified:** `.node-version`, `.nvmrc`, `bun.lock` (deleted), `public/assets/` (deleted), `package-lock.json`, `.gitignore`, `.dockerignore`, `MANIFEST.md`, `astro.config.mjs`, `scripts/export-portal.mjs`, `scripts/verify-build.mjs`, `docs/deployment.md`, `project/04-codebase-reference.md`, `project/CHANGELOG.md`, `notes/027-cloudflare-pages-forensic-audit.md`, `notes/028-cf2-roadmap-and-execution-tracker.md`.
-- **Scope Check:** Zero changes to `.astro` UI/components, CSS, `src/utils/*`, `functions/api/*`, or `config/*`.
+  5. Updated `config/site.config.json` `navLinks` GitHub URL from `https://github.com/vibtools` to `https://github.com/vibtoolshq` to match the live organization account.
+- **Files Modified:** `.node-version`, `.nvmrc`, `bun.lock` (deleted), `public/assets/` (deleted), `package-lock.json`, `.gitignore`, `.dockerignore`, `MANIFEST.md`, `astro.config.mjs`, `scripts/export-portal.mjs`, `scripts/verify-build.mjs`, `config/site.config.json`, `docs/deployment.md`, `project/04-codebase-reference.md`, `project/CHANGELOG.md`, `notes/027-cloudflare-pages-forensic-audit.md`, `notes/028-cf2-roadmap-and-execution-tracker.md`.
+- **Scope Check:** Zero changes to `.astro` UI/components, CSS, `src/utils/*`, or `functions/api/*`.
 - **Verification Output:** `npm test` (`16/16` pass), `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, `npm run verify` (`7` HTML files, `15` assets, `5` Pagefind pages, `0` broken links), `CF2_PHASE04_PROOF: PASS`, `compile_applet`, and `lint_applet`.
+
 

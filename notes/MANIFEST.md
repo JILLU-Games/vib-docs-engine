@@ -30,5 +30,7 @@
 | `024-release-phase-execution-tracker.md`        | Live execution tracker and completion log slots for `REL-Phase 01` – `03` | Tracker   |
 | `025-release-error-handling-inventory.md`       | Verified active error safeguards + 6 planned release hardening checks (`REL-EH-01` – `06`) | Governance |
 | `026-release-actual-implementation-matrix.md`   | Authoritative matrix of verified working baseline features vs pending `REL-Phase` bugfixes | Tracker   |
-| `027-cloudflare-pages-forensic-audit.md`       | Post-release forensic audit of all Cloudflare Pages & Functions deployment logic (`CF2-F01` – `CF2-F09`) | Audit     |
-| `028-cf2-roadmap-and-execution-tracker.md`     | 3-phase scope-locked Cloudflare hardening roadmap & execution tracker (`CF2-Phase 01` – `03`) | Tracker   |
+| `027-cloudflare-pages-forensic-audit.md`       | Post-release forensic audit of all Cloudflare Pages & Functions deployment logic (`CF2-F01` – `CF2-F13`) | Audit     |
+| `028-cf2-roadmap-and-execution-tracker.md`     | 4-phase scope-locked Cloudflare hardening roadmap & execution tracker (`CF2-Phase 01` – `04`) | Tracker   |
+| `029-ai-readable-vibtools-docs-and-schema.md`  | Plan & verification log for AI-readable `/vib-docs-engine/` guides, hosted JSON Schema, and LLMs index | Plan      |
+

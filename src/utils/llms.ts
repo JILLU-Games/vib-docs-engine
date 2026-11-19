@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 import type { FlatPage, ManifestProject, SiteConfig } from "./manifest";
 import { resolveAbsoluteUrl } from "./seo";
+import { VIBTOOLS_SCHEMA_PATH } from "./vibtoolsConfig";
 
 export interface ResolvedDocPage {
   page: FlatPage;
@@ -90,6 +91,7 @@ export function buildRootLlmsText(params: {
 }): string {
   const { site, categories, projects } = params;
   const fullLlmsUrl = resolveAbsoluteUrl("/llms-full.txt", site.domain);
+  const schemaUrl = resolveAbsoluteUrl(VIBTOOLS_SCHEMA_PATH, site.domain);
 
   const lines = [
     `# ${site.portalTitle}`,
@@ -97,9 +99,11 @@ export function buildRootLlmsText(params: {
     `> ${site.portalSubtitle}`,
     "",
     `Domain: ${resolveAbsoluteUrl("/", site.domain)}`,
+    `Portal Type: ${site.portalType || "all"}`,
     `Full AI Index: ${fullLlmsUrl}`,
+    `.vibtools Config JSON Schema: ${schemaUrl}`,
     "",
-    "This portal contains static product documentation. Product documentation is maintained in each product repository.",
+    "This portal contains static product documentation powered by Vib Docs Engine. Every documentation page is available as HTML, raw Markdown (`/<product>/<page>.md`), per-product AI bundle (`/<product>/llms.txt`), and portal-wide corpus (`/llms-full.txt`).",
   ];
 
   for (const category of categories) {
@@ -118,9 +122,23 @@ export function buildRootLlmsText(params: {
         `/${encodeURIComponent(project.slug)}/llms.txt`,
         site.domain,
       );
-      lines.push(
-        `- [${project.title}${version}](${docsUrl}) - ${project.description || "Product documentation."} [AI index](${llmsUrl})`,
+      const rootMdUrl = resolveAbsoluteUrl(
+        routeToMarkdownPath(`/${project.slug}/`, project.slug),
+        site.domain,
       );
+      lines.push(
+        `- [${project.title}${version}](${docsUrl}) - ${project.description || "Product documentation."} ([AI index](${llmsUrl}) | [Markdown](${rootMdUrl}))`,
+      );
+      for (const page of project.flatPages ?? []) {
+        const pageUrl = resolveAbsoluteUrl(page.route, site.domain);
+        const pageMdUrl = resolveAbsoluteUrl(
+          routeToMarkdownPath(page.route, project.slug),
+          site.domain,
+        );
+        lines.push(
+          `  - [${page.title}](${pageUrl}) ([Markdown](${pageMdUrl}))`,
+        );
+      }
     }
   }
 
@@ -136,6 +154,11 @@ export async function buildProductLlmsText(
     `/${encodeURIComponent(project.slug)}/`,
     domain,
   );
+  const rootMdUrl = resolveAbsoluteUrl(
+    routeToMarkdownPath(`/${project.slug}/`, project.slug),
+    domain,
+  );
+  const schemaUrl = resolveAbsoluteUrl(VIBTOOLS_SCHEMA_PATH, domain);
   const lines = [
     `# ${project.title}`,
     "",
@@ -143,6 +166,8 @@ export async function buildProductLlmsText(
     "",
     `Version: ${project.version || "Not specified"}`,
     `Documentation: ${canonicalProjectUrl}`,
+    `Markdown Entry: ${rootMdUrl}`,
+    `.vibtools Config JSON Schema: ${schemaUrl}`,
     "",
     "## Pages",
     "",
@@ -177,12 +202,15 @@ export async function buildRootLlmsFullText(params: {
   entries: CollectionEntry<"docs">[];
 }): Promise<string> {
   const { site, projects, entries } = params;
+  const schemaUrl = resolveAbsoluteUrl(VIBTOOLS_SCHEMA_PATH, site.domain);
   const lines = [
     `# ${site.portalTitle} — Complete Documentation`,
     "",
     `> ${site.portalSubtitle}`,
     "",
     `Portal: ${resolveAbsoluteUrl("/", site.domain)}`,
+    `Portal Type: ${site.portalType || "all"}`,
+    `.vibtools Config JSON Schema: ${schemaUrl}`,
     "",
   ];
 

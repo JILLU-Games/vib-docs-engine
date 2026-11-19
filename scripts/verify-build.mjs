@@ -349,6 +349,7 @@ async function main() {
       "_headers",
       "_redirects",
       "_routes.json",
+      path.join("schemas", "vibtools-docs.schema.json"),
       path.join("pagefind", "pagefind.js"),
     ];
     for (const file of requiredFiles) {
