@@ -9,7 +9,8 @@
     "ctaLabel": "View repository",
     "ctaUrl": "https://github.com/JILLU-Games/vib-docs-engine",
     "title": "Vib Docs Engine",
-    "description": "A static multi-product documentation engine."
+    "description": "A static multi-product documentation engine.",
+    "version": "1.0.0"
   },
   "https://github.com/vibdocs/CalGrid.git"
 ]
