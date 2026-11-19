@@ -5,8 +5,9 @@
 | `AGENTS.md`                                 | Required change-planning and documentation rules                        |
 | `README.md`                                 | Project overview, operating commands, and links to source-of-truth docs |
 | `MANIFEST.md`                               | Inventory of root files/folders                                         |
-| `CONTRIBUTING.md`                           | Contributor setup and verification guide                                |
-| `SECURITY.md`                               | Private vulnerability reporting instructions                            |
+| `CONTRIBUTING.md`                           | Contributor setup, boundaries, and verification guide                   |
+| `SECURITY.md`                               | Private vulnerability reporting instructions and security controls      |
+| `SUPPORT.md`                                | Official documentation, support, and Vib Tools contact routing guide    |
 | `package.json`, `package-lock.json`         | npm scripts (`build`, `cf:build`, `pages:build`), Node 22 engine lock, and dependencies |
 | `astro.config.mjs`, `tsconfig.json`         | Astro integrations/static output and TypeScript setup                   |
 | `wrangler.toml`, `.node-version`, `.nvmrc`  | Cloudflare Pages & Functions configuration and Node.js `22.23.5` pin    |

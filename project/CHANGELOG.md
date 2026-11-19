@@ -247,3 +247,10 @@ Record dates, files/areas, behavior changed, and verification result whenever co
 - Updated `scripts/sync-docs.mjs` to prioritize explicit `project.title` (from `.vibtools/docs.config.json` or `config/projects.json`) for the product's manifest `title` (`"CalGrid"`) before falling back to `index.md` frontmatter `title` (`"CalGrid — User Documentation"`).
 - Enhanced `src/utils/sidebar.ts` (`extractIndexLinkOrder`, `compareItems`, `walk`) so `isIndex` pages sort first at every directory level and siblings tying on `order`/`numericPrefix` follow the relative link order declared in the parent `index.md` (`Getting Started` -> `Feature Guides` -> `Workflows` -> `Settings` -> `Help & Troubleshooting`).
 - Verified `npm test` (`17/17` pass), `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, and `npm run verify` (`39` HTML files, `16` required assets, `2` projects, `37` Pagefind pages, `0` broken links).
+
+## 2026-11-19 — GitHub-Ready SEO Markdown Suite & Verified Vib Tools Company/Author Profile
+
+- Upgraded `README.md` with an SEO-friendly tagline and summary, complete A–Z feature matrix covering all implemented engine capabilities (`.vibtools/` auto-discovery, two-step Git sparse checkout, dual-portal routing, 2-organization workflow for `vibtoolshq` and `vibdocs`, Smart Markdown extraction, deterministic sidebar + parent `index.md` link-order tie-breaker, Pagefind search, Schema.org JSON-LD, `/llms.txt` + `/llms-full.txt` + `/*.md` + `/schemas/vibtools-docs.schema.json`, Cloudflare Pages + Functions, Docker + Nginx), and the full verified Vib Tools author/company contact block from `VIB_TOOLS_COMPANY_AUTHOR_MASTER_CONTEXT.md`.
+- Upgraded `CONTRIBUTING.md` and `SECURITY.md` with current verification commands (`npm test`, `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, `npm run verify`), built-in security controls table, and official contact channels (`support@vibtools.io`, `hello@vibtools.io`).
+- Added `SUPPORT.md` and updated `.github/ISSUE_TEMPLATE/config.yml`, `.github/PULL_REQUEST_TEMPLATE.md`, and root `MANIFEST.md`.
+

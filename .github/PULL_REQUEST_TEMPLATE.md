@@ -8,9 +8,11 @@ Link the issue or state `Not applicable`.
 
 ## Verification
 
-- [ ] `npx tsc --noEmit`
+- [ ] `npm test`
+- [ ] `npm run lint` (`npx tsc --noEmit`)
+- [ ] `npx tsc -p functions/tsconfig.json --noEmit`
 - [ ] `npm run verify`
-- [ ] Generated files and build output were not hand-edited
+- [ ] Generated files (`src/content/docs/`, `src/generated/`, `dist/`) were not hand-edited
 - [ ] Credentials, private paths, and tokens are absent
 
 ## Documentation

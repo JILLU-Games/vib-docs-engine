@@ -34,4 +34,6 @@
 | `028-cf2-roadmap-and-execution-tracker.md`     | 4-phase scope-locked Cloudflare hardening roadmap & execution tracker (`CF2-Phase 01` – `04`) | Tracker   |
 | `029-ai-readable-vibtools-docs-and-schema.md`  | Plan & verification log for AI-readable `/vib-docs-engine/` guides, hosted JSON Schema, and LLMs index | Plan      |
 | `030-onboard-calgrid-vibdocs.md`               | Audit & onboarding log for `https://github.com/vibdocs/CalGrid` on `docs.vib.tools`          | Plan      |
+| `031-github-ready-markdown-and-seo-docs.md`    | Plan & verification log for GitHub-ready SEO `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `SUPPORT.md` | Plan      |
+
 
