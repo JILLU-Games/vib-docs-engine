@@ -255,5 +255,75 @@ Record dates, files/areas, behavior changed, and verification result whenever co
 - Added `SUPPORT.md`, removed `.github/README.md` (merging its description into `.github/MANIFEST.md` so GitHub renders the root `/README.md` on the repository homepage instead of `.github/README.md`), and updated `.github/ISSUE_TEMPLATE/config.yml`, `.github/PULL_REQUEST_TEMPLATE.md`, `AGENTS.md`, `project/04-codebase-reference.md`, and root `MANIFEST.md`.
 - Marked `vib-docs-engine` as production release `1.0.0` (`v1.0.0`) across `package.json`, `package-lock.json`, `.vibtools/docs.config.json`, `config/projects.json`, `docs/index.md`, and `docs/vibtools-config.md`.
 
+## 2026-11-20 — Configure Portal Exclusively as `docs.vib.tools` Users-Only Documentation Portal
 
+- Updated `config/site.config.json` to `"portalType": "users"`, `"portalSubtitle": "End-user guides, setup manuals, and product tutorials."`, and added `"Developer Docs"` (`https://developer.vibtools.io`), `"Vib Tools"` (`https://vib.tools`), and `"GitHub"` (`https://github.com/vibtoolshq`) in `navLinks`.
+- Updated `config/projects.json` to remove `vib-docs-engine` (now hosted separately at `https://developer.vibtools.io/`) and retain user-facing documentation entries (`https://github.com/vibdocs/CalGrid.git`).
+- Updated `wrangler.toml` `name` to `"docs-vib-tools"` matching the Cloudflare Pages user portal deployment.
 
+## 2026-11-20 — Audit `https://github.com/vibtoolshq` & Onboard `ReadBox` Users Documentation (`docs.vib.tools`)
+
+- Audited all 8 repositories under `https://github.com/vibtoolshq` (`docscaffold`, `KronOTP`, `ReadBox`, `SocketCore`, `UpdatePilot`, `VPS-MCP`, `LicenX`, and `.github`).
+- Verified `.vibtools/docs.config.json` schema compliance across all 6 repositories that include `.vibtools/` (`docscaffold`, `KronOTP`, `ReadBox`, `SocketCore`, `UpdatePilot`, `VPS-MCP`), noting `KronOTP` uses `.vibtools/logo.webp` (not `.png`/`.svg`) and `LicenX` has `docs/users/` but no `.vibtools/` folder yet.
+- Registered `"https://github.com/vibtoolshq/ReadBox.git"` (`docsType: "both"` with `targets.users.docsPath: "docs/users"`) in `config/projects.json` alongside `"https://github.com/vibdocs/CalGrid.git"`.
+- Verified `npm test` (`17/17` pass), `STRICT_SYNC=1 npm run verify` (`Synced calgrid`, `Synced readbox`, `48` HTML files, `16` required assets, `2` projects, `46` Pagefind pages, `0` broken links), `npm run lint`, and `npx tsc -p functions/tsconfig.json --noEmit`.
+
+## 2026-11-20 — Documentation-Only Scope Lock: Freeze `.vibtools/` Docs Config Schema (`schemaVersion: 1`)
+
+- Created `project/05-frozen-vibtools-schema.md` establishing the `.vibtools/docs.config.json` / `.vibtools/config.docs.json` schema (`https://docs.vib.tools/schemas/vibtools-docs.schema.json`, Draft 2020-12) as **FINAL & FROZEN** across both `docs.vib.tools` (`portalType: "users"`) and `developer.vibtools.io` (`portalType: "developer"`), with byte-for-byte parity against `dist/schemas/vibtools-docs.schema.json`.
+- Updated `AGENTS.md` with a mandatory `Frozen .vibtools/ Docs Schema Policy` rule prohibiting any AI agent from modifying, renaming, weakening, or breaking the `.vibtools/` schema or its validation/collection behavior during code, UI, or bug-fix work without an explicit direct order from the Repository Owner.
+- Updated `project/00-vision-and-purpose.md`, `project/README.md`, `project/MANIFEST.md`, `docs/vibtools-config.md`, `docs/MANIFEST.md`, `notes/034-freeze-vibtools-schema-docs-only.md`, and `notes/MANIFEST.md` (strictly documentation-only edits; zero application code or runtime config changes).
+
+## 2026-11-20 — `SEO2-Phase 01`: AI Index Parity, Edge Crawl Hygiene, `404` SEO & Sitemap `<lastmod>` (`BUG-SEO-01` – `BUG-SEO-04`)
+
+- Unified `src/pages/[product]/llms.txt.ts` by replacing its duplicated inline filter/markdown loop with shared `resolveProductEntries` and `buildProductLlmsText` helpers (`src/utils/llms.ts`) so per-product `/<product>/llms.txt` bundles emit `Markdown Entry:`, `.vibtools Config JSON Schema:`, `[Markdown]` page links, and clean empty-body fallbacks (`BUG-SEO-01`, `ERR-SEO-01`), and added `src/utils/llms.test.ts`.
+- Added `X-Robots-Tag: noindex, follow` on `/*.md` (preventing raw Markdown exports from competing with canonical HTML doc routes) and `Access-Control-Allow-Origin: *` on `/llms.txt`, `/llms-full.txt`, `/*/llms.txt`, `/*.md`, and `/schemas/*.json` across both `public/_headers` and `nginx.conf` (`BUG-SEO-02`).
+- Extended `src/layouts/BaseLayout.astro` (`canonicalPath?: string | null`, `includeSocialMeta?: boolean`) and `src/layouts/HubLayout.astro` (`title`, `description`, `canonicalPath`) to suppress `<link rel="canonical">` and OpenGraph/Twitter share tags on `noindex` routes, and updated `src/pages/404.astro` with distinct `"Page Not Found"` metadata, `canonicalPath={null}`, and `projects={manifest.projects}` footer links (`BUG-SEO-03`, `ERR-SEO-03`).
+- Updated `astro.config.mjs` (`resolveBuildLastmodIso`) to configure `@astrojs/sitemap` with an explicit `/404` `filter` and `manifest.generatedAt` `<lastmod>` serialization (`BUG-SEO-04`, `ERR-SEO-02`).
+- Updated `notes/003`–`005`, `src/utils/MANIFEST.md`, `project/04-codebase-reference.md`, and `project/CHANGELOG.md`; `.vibtools/` schema (`project/05-frozen-vibtools-schema.md`) remained untouched.
+- Verified `npm test` (`21/21` pass), `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, `STRICT_SYNC=1 npm run verify` (`48` HTML files, `16` required assets, `2` projects, `46` Pagefind pages, `0` broken links), and inspected `dist/readbox/llms.txt`, `dist/calgrid/llms.txt`, `dist/404.html`, `dist/sitemap-0.xml`, `dist/_headers`, `dist/index.html`, and `dist/calgrid/index.html`.
+
+## 2026-11-20 — `SEO2-Phase 02`: Compact SERP `<title>`, Clickable Folder Breadcrumbs & Rich Schema.org JSON-LD (`BUG-SEO-05` – `BUG-SEO-07`)
+
+- Added `normalizeProductSeoLabel`, `buildDocDocumentTitle`, and `formatBaseTitle` in `src/utils/seo.ts` and wired them into `src/layouts/BaseLayout.astro` and `src/layouts/DocsLayout.astro` so Hub `/` preserves `"Vib Tools Documentation"` while docs and subpages use compact `| Vib Tools` branding without repeating `"Documentation"` (`BUG-SEO-05`; max `<title>` across all `48` built pages dropped from `107` to `74` chars, `0` titles `> 80` chars).
+- Added `cleanSeoRouteSegment` and `buildDocBreadcrumbs` in `src/utils/seo.ts` and updated `src/layouts/DocsLayout.astro` so subfolder breadcrumbs (`Getting Started`, `Feature Guides`, `ReadBox Feature Guide Index`, etc.) render as clickable `<a href>` links with Schema.org `"item"` URLs when matching `flatPages` exist, fall back safely to unlinked spans when absent (`ERR-SEO-04`), and deduplicate product root overview breadcrumbs (`BUG-SEO-06`).
+- Upgraded `buildHubJsonLd(site, projects)` and `buildDocJsonLd(input)` in `src/utils/seo.ts` (and passed `projects` in `src/pages/index.astro`) to emit `CollectionPage` + `ItemList` of `SoftwareApplication` items on `/` and `inLanguage`, `author`, `articleSection`, `image`, plus `SoftwareApplication.url`/`applicationCategory` on doc routes (`BUG-SEO-07`, `ERR-SEO-05`).
+- Expanded unit tests in `src/utils/seo.test.ts` and updated `notes/003`–`005`, `project/04-codebase-reference.md`, and `project/CHANGELOG.md` (`.vibtools/` schema remained untouched).
+- Verified `npm test` (`23/23` pass), `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, `STRICT_SYNC=1 npm run verify` (`48` HTML files, `16` required assets, `2` projects, `46` Pagefind pages, `0` broken links), and audited `<title>`, breadcrumb `<nav>`, and `<script type="application/ld+json">` outputs across `dist/`.
+
+## 2026-11-20 — `SEO2-Phase 03`: Optimized `og-default.png`, Async Fonts, Footer AI Links & Pagefind Search Polish (`BUG-SEO-08`, `BUG-SEO-09`, `ERR-SEO-06`)
+
+- Re-encoded `public/og-default.png` to canonical `1200x630` pixels and `223,901` bytes (8-bit sRGB PNG, down `82.5%` from `1,279,746` bytes / `1731x909`), and updated `src/layouts/BaseLayout.astro` to emit `<meta name="author">`, `og:locale` (`en_US`), `og:image:width="1200"`, `og:image:height="630"`, and `twitter:image:alt` on indexable pages while keeping social tags suppressed on `noindex` routes (`BUG-SEO-08`).
+- Switched Google Fonts CSS in `src/layouts/BaseLayout.astro` to non-render-blocking `<link rel="preload" as="style">` + `media="print" onload="this.media='all'"` + `<noscript>` fallback, and added `/llms-full.txt` (`Full AI Corpus`) and `/schemas/vibtools-docs.schema.json` (`Config Schema`) links under Footer `Resources` in `src/layouts/HubLayout.astro`.
+- Updated `src/layouts/DocsLayout.astro` (`Astro.slots.render("default")`) to inject `data-pagefind-weight="10"` onto Markdown-rendered `<h1>` headings alongside explicit `data-pagefind-meta={`product:${product.title};title:${pageTitle}`}`, giving all `46` documentation pages equal title/H1 search ranking weight without duplicating `<h1>` or dropping ExpressiveCode assets (`BUG-SEO-09`).
+- Updated `src/components/ui/SearchModal.astro` to cap Pagefind `result.data()` hydration at `20` items (`Showing X of Y results` when truncated, `ERR-SEO-06`) and display section route breadcrumbs (`formatBreadcrumb`) under live search result titles (`BUG-SEO-09`).
+- Updated `notes/003`–`005`, `project/04-codebase-reference.md`, and `project/CHANGELOG.md` (`.vibtools/` schema remained untouched).
+- Verified `npm test` (`23/23` pass), `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, `STRICT_SYNC=1 npm run verify` (`48` HTML files, `16` required assets, `2` projects, `46` Pagefind pages / `2,352` words, `0` broken links), and audited `dist/` across all `48` HTML files + `public/og-default.png` dimensions and payload.
+
+## 2026-11-20 — `SEO2-Phase 04`: Automated SEO/AI Build Gates, Pagefind Metadata Fix & Live Browser Audit (`BUG-SEO-10`, `ERR-SEO-07`)
+
+- Upgraded `scripts/verify-build.mjs` with automated SEO and AI index assertions failing production builds on missing or oversized (`> 512 KB`) `og-default.png`, missing `Markdown Entry:` or `.vibtools Config JSON Schema:` in `/<product>/llms.txt`, `canonical` or `og:*`/`twitter:*` leaks on `dist/404.html`, `<h1> !== 1` or empty `<title>`/`<meta name="description">`, missing absolute `<link rel="canonical">` on indexable routes, or `dist/sitemap-0.xml` route-count/`/404`/`<lastmod>` regressions (`BUG-SEO-10`, `ERR-SEO-07`).
+- Fixed Pagefind `data-pagefind-meta` parsing in `src/layouts/DocsLayout.astro` (caught during live Playwright SearchModal inspection) by replacing `product:${product.title};title:${pageTitle}` with attribute-bound `product[data-product-name], title[data-doc-title]`, preventing `;` leakage and preserving titles containing commas (`"User accounts, administrators, permissions and audit"`).
+- Synchronized `notes/003`–`005`, `project/04-codebase-reference.md`, and `project/CHANGELOG.md` (`.vibtools/` schema in `project/05-frozen-vibtools-schema.md` remained untouched).
+- Verified `npm test` (`23/23` pass), `npm run lint`, `npx tsc -p functions/tsconfig.json --noEmit`, `STRICT_SYNC=1 npm run verify` (`48` HTML files, `16` required assets, `2` projects, `46` Pagefind pages / `2,309` words, `0` broken links), and live headless Chromium Playwright audit across Hub `/`, `/calgrid/`, `/readbox/features/admin-and-accounts/`, `/404`, SearchModal scoped/global search, Desktop (`1440x900`) & Mobile (`390x844`), and Light/Dark modes (`0` console errors on content routes, `0` layout overflow).
+
+## 2026-11-20 — `.vibtools/` Display Metadata Precedence & Sparse-Branch `.vibtools/` Re-Read Fix
+
+- Added pure helper module `src/utils/syncMetadata.ts` (`resolveProjectDisplayMetadata`, `nextSparseBranchTarget`) and `node:test` coverage in `src/utils/syncMetadata.test.ts` while keeping the frozen `.vibtools/` JSON Schema (`src/utils/vibtoolsConfig.ts` and `src/pages/schemas/vibtools-docs.schema.json.ts`) untouched.
+- Updated `scripts/sync-docs.mjs` (`syncProject`) so resolved `.vibtools/` / registry metadata (`title`, `description`, `version`) consistently takes precedence over stale root `index.md` YAML frontmatter, and so switching branches via `switchGitSparseBranch()` re-reads `.vibtools/` from the target branch and re-evaluates `resolvePortalProjectConfig()` before reserving slugs and checking out `docsPath`.
+- Verified `npm test` (`26/26` pass), `npm run lint`, `compile_applet`, `STRICT_SYNC=1 npm run verify` (`CalGrid` updated to `"version": "1.0.4"`, `ReadBox` updated to `.vibtools/` `targets.users.description`, `48` HTML files, `16` required assets, `2` projects, `0` broken links), and live Playwright Chromium inspection of `/` and `/calgrid/`.
+
+## 2026-11-20 — Compact Search-First Multi-Product Hub Hero (`/` & `HubLayout`)
+
+- Added `buildBalancedStartLinks(projects, limit)` in `src/utils/search.ts` and unit tests in `src/utils/search.test.ts` to select onboarding/getting-started guides in round-robin across all onboarded products rather than defaulting to `projects[0]`.
+- Added optional `showHeaderSearch` prop (`true` by default) to `src/layouts/HubLayout.astro` so `/` eliminates the duplicate header search button while `/404` retains its header search bar.
+- Redesigned `src/pages/index.astro` into a compact search-first Hero (`py-5 sm:py-6`, `font-medium` title, single wide `Search documentation... Ctrl K` trigger, and 1-line balanced `Start here:` shortcuts) directly above `CategoryTabs` and `ProjectCard`.
+- Verified `npm test` (`27/27`), `npm run lint`, `compile_applet`, `STRICT_SYNC=1 npm run verify`, and live Playwright Chromium inspection across Desktop Dark (`1440x900`), Desktop Light (`1440x900`), Mobile (`390x844`), SearchModal, and CategoryTabs filtering (`0` console errors, `0` horizontal overflow).
+
+## 2026-11-20 — URL Theme Query Routing (`?theme=light|dark`, Option A)
+
+- Added `ThemeMode`, `normalizeThemeMode`, `resolveThemeFromSearch`, `resolveInitialTheme`, and `syncThemeQueryInUrl` in `src/utils/theme.ts` with `node:test` coverage in `src/utils/theme.test.ts` (4 unit tests covering `?theme=`, `?themes=` alias, invalid fallback, `localStorage` precedence, and URL sync).
+- Updated `src/layouts/BaseLayout.astro` pre-paint `<head>` theme bootstrap so any portal or documentation URL with `?theme=light|dark` (or `?themes=light|dark`) applies immediately before paint and persists to `localStorage("theme")` across internal navigation while preserving clean canonical SEO URLs.
+- Updated `src/components/ui/ThemeToggle.astro` to sync active `?theme=` / `?themes=` query parameters via `window.history.replaceState` on toggle while leaving clean URLs unmodified during normal browsing.
+- Updated `src/utils/MANIFEST.md`, `project/04-codebase-reference.md`, and `docs/portal-user-guide.md`.
+- Verified `npm test` (`31/31` pass), `npm run lint`, `compile_applet`, `STRICT_SYNC=1 npm run verify` (`48` HTML files, `16` required assets, `2` projects, `0` broken links), and live Playwright Chromium journeys (`0` console errors/warnings).

@@ -9,11 +9,26 @@ import ThemeToggle from "../components/ui/ThemeToggle.astro";
 interface Props {
   site?: typeof siteConfig;
   projects?: Array<{ slug: string; title: string }>;
+  title?: string;
+  description?: string;
+  canonicalPath?: string | null;
   robots?: string;
   structuredData?: Record<string, unknown> | Array<Record<string, unknown>>;
+  showHeaderSearch?: boolean;
 }
 
-const { site = siteConfig, projects = [], robots, structuredData } = Astro.props;
+const {
+  site = siteConfig,
+  projects = [],
+  title,
+  description,
+  canonicalPath,
+  robots,
+  structuredData,
+  showHeaderSearch = true,
+} = Astro.props;
+const resolvedTitle = title ?? site.portalTitle;
+const resolvedDescription = description ?? site.portalSubtitle;
 const publicRoot = resolve(process.cwd(), "public");
 const logoPath = resolve(publicRoot, site.brandLogo.replace(/^\/+/, ""));
 const logoRelativePath = relative(publicRoot, logoPath);
@@ -35,10 +50,22 @@ try {
 }
 ---
 
-<BaseLayout title={site.portalTitle} description={site.portalSubtitle} accentColor={site.defaultAccent} robots={robots} structuredData={structuredData}>
+<BaseLayout
+  title={resolvedTitle}
+  description={resolvedDescription}
+  accentColor={site.defaultAccent}
+  canonicalPath={canonicalPath}
+  robots={robots}
+  structuredData={structuredData}
+>
   <div class="flex min-h-screen flex-col">
     <header class="sticky top-0 z-30 h-14 border-b border-[var(--border-hairline)] bg-[var(--bg-canvas)]/90 backdrop-blur-md">
-      <div class="mx-auto flex h-full max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr] md:gap-4 lg:px-8">
+      <div
+        class:list={[
+          "mx-auto flex h-full max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 lg:px-8",
+          showHeaderSearch && "md:grid md:grid-cols-[1fr_auto_1fr] md:gap-4",
+        ]}
+      >
         <a class="flex min-w-0 items-center gap-2 text-sm font-semibold text-[var(--text-primary)] no-underline md:justify-self-start" href="/" aria-label={`${site.brandName} docs home`}>
           {brandLogoExists ? (
             <img class="size-6 shrink-0 rounded-[5px] object-contain" src={site.brandLogo} alt="" width="24" height="24" />
@@ -52,18 +79,20 @@ try {
           <span class="hidden text-xs font-medium text-[var(--text-muted)] sm:inline">Docs</span>
         </a>
 
-        <button
-          class="ml-auto inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-surface)] text-xs text-[var(--text-muted)] transition-colors hover:border-[var(--text-muted)]/40 hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-color)] sm:w-auto sm:justify-between sm:px-2.5 md:ml-0 md:w-72 md:justify-self-center lg:w-80"
-          type="button"
-          data-search-trigger
-          aria-label="Search documentation"
-        >
-          <span class="flex min-w-0 items-center gap-2">
-            <Search class="size-3.5 shrink-0" aria-hidden="true" />
-            <span class="hidden truncate sm:inline">Search documentation...</span>
-          </span>
-          <kbd class="hidden shrink-0 rounded border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-1.5 py-px font-mono text-[10px] leading-4 text-[var(--text-muted)] md:inline-flex">Ctrl K</kbd>
-        </button>
+        {showHeaderSearch && (
+          <button
+            class="ml-auto inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-surface)] text-xs text-[var(--text-muted)] transition-colors hover:border-[var(--text-muted)]/40 hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-color)] sm:w-auto sm:justify-between sm:px-2.5 md:ml-0 md:w-72 md:justify-self-center lg:w-80"
+            type="button"
+            data-search-trigger
+            aria-label="Search documentation"
+          >
+            <span class="flex min-w-0 items-center gap-2">
+              <Search class="size-3.5 shrink-0" aria-hidden="true" />
+              <span class="hidden truncate sm:inline">Search documentation...</span>
+            </span>
+            <kbd class="hidden shrink-0 rounded border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-1.5 py-px font-mono text-[10px] leading-4 text-[var(--text-muted)] md:inline-flex">Ctrl K</kbd>
+          </button>
+        )}
 
         <div class="flex shrink-0 items-center gap-1 md:justify-self-end">
           <nav class="hidden items-center gap-0.5 md:flex" aria-label="External links">
@@ -133,6 +162,16 @@ try {
               <li>
                 <a class="text-[var(--text-muted)] no-underline transition-colors hover:text-[var(--text-primary)]" href="/llms.txt">
                   LLMs Index
+                </a>
+              </li>
+              <li>
+                <a class="text-[var(--text-muted)] no-underline transition-colors hover:text-[var(--text-primary)]" href="/llms-full.txt">
+                  Full AI Corpus
+                </a>
+              </li>
+              <li>
+                <a class="text-[var(--text-muted)] no-underline transition-colors hover:text-[var(--text-primary)]" href="/schemas/vibtools-docs.schema.json">
+                  Config Schema
                 </a>
               </li>
               <li>

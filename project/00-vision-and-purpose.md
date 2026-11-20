@@ -24,6 +24,7 @@ Each deployment owns its own product registry, portal branding, generated files,
 3. **Product documentation lives in product Git repos.** Do not store authored product docs in this website repository. Each product repo contains its own `docs/index.md` and any nested `.md`/`.mdx` pages and assets. `src/content/docs/`, `src/generated/`, and synchronized product logos are generated build inputs, not authoring locations.
 4. **Pure static output and build-time sync.** During `prebuild`, `scripts/sync-docs.mjs` retrieves only the configured docs subtree through Git sparse checkout, then Astro emits static HTML/CSS and Pagefind emits the local search index in `dist/`. No client-side Git or docs API calls are allowed at runtime.
 5. **Ultra-compact, zero-clutter UI.** Keep padding minimal, information density high, borders crisp and 1px, and decoration to zero. Documentation content, not chrome, is the focus.
+6. **`.vibtools/` schema is final and frozen (`schemaVersion: 1`).** The canonical schema documented in `project/05-frozen-vibtools-schema.md` and served at `/schemas/vibtools-docs.schema.json` governs `docs/` collection across both `docs.vib.tools` and `developer.vibtools.io`. It must never be modified, weakened, or broken during code/UI/fix work without explicit Repository Owner permission.
 
 ## Scope and implementation boundary
 

@@ -167,6 +167,22 @@ function servePagefindInDev() {
   };
 }
 
+function resolveBuildLastmodIso() {
+  try {
+    const manifestUrl = new URL("./src/generated/manifest.json", import.meta.url);
+    const manifestData = JSON.parse(readFileSync(manifestUrl, "utf8"));
+    if (
+      typeof manifestData?.generatedAt === "string" &&
+      !Number.isNaN(Date.parse(manifestData.generatedAt))
+    ) {
+      return new Date(manifestData.generatedAt).toISOString();
+    }
+  } catch {
+    // Fall back to current timestamp if manifest is missing or malformed.
+  }
+  return new Date().toISOString();
+}
+
 const sharedRemarkPlugins = [
   externalMarkdownLinks,
   rewriteInternalMarkdownLinks,
@@ -185,7 +201,13 @@ export default defineConfig({
       themes: ["github-dark", "github-light"],
     }),
     mdx(),
-    sitemap(),
+    sitemap({
+      filter: (page) => !/\/404(?:\.html)?\/?$/i.test(page),
+      serialize: (item) => ({
+        ...item,
+        lastmod: resolveBuildLastmodIso(),
+      }),
+    }),
     {
       name: "vib-prune-public-governance-docs",
       hooks: {

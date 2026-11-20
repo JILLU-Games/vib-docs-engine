@@ -43,3 +43,55 @@ export function formatVersionBadge(version?: string | number | null): string {
   const normalized = trimmed.replace(/^v+/i, "").trim();
   return normalized ? `v${normalized}` : "";
 }
+
+export type ThemeMode = "light" | "dark";
+
+export function normalizeThemeMode(value?: string | null): ThemeMode | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "light" || normalized === "dark") {
+    return normalized;
+  }
+  return null;
+}
+
+export function resolveThemeFromSearch(search: string): ThemeMode | null {
+  if (typeof search !== "string" || !search.trim()) return null;
+  const params = new URLSearchParams(search);
+  return (
+    normalizeThemeMode(params.get("theme")) ??
+    normalizeThemeMode(params.get("themes"))
+  );
+}
+
+export function resolveInitialTheme(
+  search: string,
+  storedTheme?: string | null,
+  defaultTheme: ThemeMode = "dark",
+): { theme: ThemeMode; fromQuery: boolean } {
+  const queryTheme = resolveThemeFromSearch(search);
+  if (queryTheme) {
+    return { theme: queryTheme, fromQuery: true };
+  }
+  const saved = normalizeThemeMode(storedTheme);
+  return { theme: saved ?? defaultTheme, fromQuery: false };
+}
+
+export function syncThemeQueryInUrl(
+  href: string,
+  nextTheme: ThemeMode,
+): string | null {
+  let url: URL;
+  try {
+    url = new URL(href, "http://localhost");
+  } catch {
+    return null;
+  }
+  if (!url.searchParams.has("theme") && !url.searchParams.has("themes")) {
+    return null;
+  }
+  url.searchParams.delete("themes");
+  url.searchParams.set("theme", nextTheme);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+

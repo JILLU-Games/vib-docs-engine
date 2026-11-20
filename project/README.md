@@ -9,6 +9,7 @@ This tracked directory is the source of truth for why the engine exists, its two
 - `02-features-and-workflow.md`: product behavior and operating workflows.
 - `03-ui-design-system.md`: tokens and target layouts/wireframes.
 - `04-codebase-reference.md`: verified current file/function map and setup flow.
+- `05-frozen-vibtools-schema.md`: **FINAL & FROZEN** `.vibtools/` docs configuration JSON Schema (`schemaVersion: 1`, immutable without explicit owner order) for both `docs.vib.tools` and `developer.vibtools.io`.
 - `CHANGELOG.md`: dated phase and fix log.
 - `MANIFEST.md`: file inventory.
 

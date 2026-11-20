@@ -13,6 +13,8 @@ import { Moon, Sun } from "lucide-astro";
 </button>
 
 <script>
+  import { syncThemeQueryInUrl } from "../../utils/theme";
+
   const toggleButton = document.querySelector<HTMLButtonElement>("[data-theme-toggle]");
 
   if (toggleButton) {
@@ -31,6 +33,12 @@ import { Moon, Sun } from "lucide-astro";
       document.documentElement.dataset.theme = theme;
       try {
         localStorage.setItem("theme", theme);
+      } catch {}
+      try {
+        const nextUrl = syncThemeQueryInUrl(window.location.href, theme);
+        if (nextUrl) {
+          window.history.replaceState(null, "", nextUrl);
+        }
       } catch {}
       updateLabel();
     });

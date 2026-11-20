@@ -415,9 +415,16 @@ const quickSuggestions = buildQuickSuggestions(manifest.projects as ManifestProj
     topRow.className = "flex items-center gap-2";
     topRow.append(createSvgIcon("doc"));
 
+    let fallbackSlugTitle = "Documentation";
+    try {
+      fallbackSlugTitle = decodeURIComponent(
+        new URL(href).pathname.split("/").filter(Boolean).at(-1) || "Documentation",
+      );
+    } catch {}
+
     const title = document.createElement("span");
     title.className = "min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text-primary)]";
-    title.textContent = data.meta?.title || decodeURIComponent(new URL(href).pathname.split("/").filter(Boolean).at(-1) || "Documentation");
+    title.textContent = data.meta?.title || fallbackSlugTitle;
     topRow.append(title);
 
     if (scope === "all" && data.meta?.product) {
@@ -427,6 +434,14 @@ const quickSuggestions = buildQuickSuggestions(manifest.projects as ManifestProj
       topRow.append(productBadge);
     }
     link.append(topRow);
+
+    const breadcrumbText = formatBreadcrumb(href, data.meta?.product);
+    if (breadcrumbText) {
+      const breadcrumb = document.createElement("span");
+      breadcrumb.className = "mt-0.5 block truncate pl-6 text-[11px] text-[var(--text-muted)]";
+      breadcrumb.textContent = breadcrumbText;
+      link.append(breadcrumb);
+    }
 
     if (data.excerpt) {
       const excerpt = document.createElement("span");
@@ -464,6 +479,7 @@ const quickSuggestions = buildQuickSuggestions(manifest.projects as ManifestProj
   }
 
   async function search(query: string): Promise<void> {
+    const MAX_RESULTS = 20;
     const sequence = ++searchSequence;
     if (!resultsList || !emptyBox) return;
 
@@ -478,7 +494,10 @@ const quickSuggestions = buildQuickSuggestions(manifest.projects as ManifestProj
       const pagefind = await getPagefind();
       const options = scope === "product" && scopeSlug ? { filters: { product: scopeSlug } } : undefined;
       const response = await pagefind.search(query, options);
-      const results = await Promise.all(response.results.map((result) => result.data()));
+      const totalResults = response.results.length;
+      const results = await Promise.all(
+        response.results.slice(0, MAX_RESULTS).map((result) => result.data()),
+      );
       if (sequence !== searchSequence || modal?.hidden) return;
       const items = results.map(createResultItem).filter((item): item is HTMLLIElement => item !== null);
       resultsList.replaceChildren(...items);
@@ -487,7 +506,10 @@ const quickSuggestions = buildQuickSuggestions(manifest.projects as ManifestProj
       if (emptyBox && items.length === 0) {
         emptyBox.textContent = `No results found for "${query}".`;
       }
-      const countLabel = `${items.length} result${items.length === 1 ? "" : "s"}`;
+      const countLabel =
+        totalResults > items.length
+          ? `Showing ${items.length} of ${totalResults} results`
+          : `${totalResults} result${totalResults === 1 ? "" : "s"}`;
       setStatus(items.length ? countLabel : "No matching documentation found.", items.length ? countLabel : "");
     } catch {
       if (sequence !== searchSequence) return;

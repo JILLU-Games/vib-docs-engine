@@ -513,11 +513,16 @@ async function loadVibtoolsConfigHelpers() {
   return loadTypeScriptModule(path.join("src", "utils", "vibtoolsConfig.ts"));
 }
 
+async function loadSyncMetadataHelpers() {
+  return loadTypeScriptModule(path.join("src", "utils", "syncMetadata.ts"));
+}
+
 async function syncProject(
   registryEntry,
   siteConfig,
   buildSidebar,
   vibtoolsHelpers,
+  syncMetadataHelpers,
   token,
   reservedSlugs,
 ) {
@@ -617,7 +622,7 @@ async function syncProject(
       repoRootForMetadata = checkoutDirectory;
     }
 
-    const resolution = vibtoolsHelpers.resolvePortalProjectConfig({
+    let resolution = vibtoolsHelpers.resolvePortalProjectConfig({
       portalType: siteConfig.portalType || "all",
       registryEntry,
       remoteConfig,
@@ -635,6 +640,47 @@ async function syncProject(
           registryEntry.localPath ||
           "unknown",
       };
+    }
+
+    const visitedBranches = new Set(clonedBranch ? [clonedBranch] : []);
+    while (temporaryDirectory && repoRootForMetadata) {
+      const nextBranch = syncMetadataHelpers.nextSparseBranchTarget(
+        clonedBranch,
+        resolution.project.branch,
+        visitedBranches,
+      );
+      if (!nextBranch) break;
+      switchGitSparseBranch(repoRootForMetadata, nextBranch, [
+        token,
+        registryEntry.secretKey,
+        registryEntry.gitToken,
+        resolveSecretValue(registryEntry.secretKey),
+        resolveSecretValue(registryEntry.gitToken),
+      ]);
+      clonedBranch = nextBranch;
+      visitedBranches.add(nextBranch);
+      remoteConfig = await readVibtoolsConfigFromRoot(
+        repoRootForMetadata,
+        vibtoolsHelpers,
+      );
+      resolution = vibtoolsHelpers.resolvePortalProjectConfig({
+        portalType: siteConfig.portalType || "all",
+        registryEntry,
+        remoteConfig,
+        defaultAccent: siteConfig.defaultAccent,
+      });
+      if (!resolution.matched) {
+        return {
+          status: "skipped",
+          reason: resolution.reason,
+          label:
+            registryEntry.slug ||
+            candidateDerivedSlug ||
+            registryEntry.repoUrl ||
+            registryEntry.localPath ||
+            "unknown",
+        };
+      }
     }
 
     const project = resolution.project;
@@ -655,15 +701,6 @@ async function syncProject(
       assertWithin(repoRootForMetadata, targetDocsDirectory, "docsPath");
 
       if (temporaryDirectory) {
-        if (clonedBranch && project.branch !== clonedBranch) {
-          switchGitSparseBranch(repoRootForMetadata, project.branch, [
-            token,
-            registryEntry.secretKey,
-            registryEntry.gitToken,
-            resolveSecretValue(registryEntry.secretKey),
-            resolveSecretValue(registryEntry.gitToken),
-          ]);
-        }
         const extraPaths = [project.docsPath];
         if (project.logoPath) {
           const logoDir = path.posix.dirname(project.logoPath);
@@ -685,22 +722,28 @@ async function syncProject(
     const parsedIndex = matter(indexSource);
     const frontmatter = parsedIndex.data;
     const extracted = vibtoolsHelpers.extractMarkdownMetadata(indexSource);
-    const title =
-      project.title ||
-      metadataString(frontmatter.title, "title", project) ||
-      extracted.title ||
-      titleFromMarkdown(parsedIndex.content) ||
-      formatSlug(project.slug);
-    const description =
-      metadataString(frontmatter.description, "description", project) ||
-      project.description ||
-      extracted.description ||
-      "";
-    const version =
-      metadataString(frontmatter.version, "version", project) ||
-      (project.version === undefined ? "" : String(project.version)) ||
-      extracted.version ||
-      "";
+    const { title, description, version } =
+      syncMetadataHelpers.resolveProjectDisplayMetadata({
+        projectTitle: project.title,
+        projectDescription: project.description,
+        projectVersion: project.version,
+        frontmatterTitle: metadataString(frontmatter.title, "title", project),
+        frontmatterDescription: metadataString(
+          frontmatter.description,
+          "description",
+          project,
+        ),
+        frontmatterVersion: metadataString(
+          frontmatter.version,
+          "version",
+          project,
+        ),
+        extractedTitle: extracted.title,
+        extractedDescription: extracted.description,
+        extractedVersion: extracted.version,
+        markdownHeadingTitle: titleFromMarkdown(parsedIndex.content),
+        fallbackSlugTitle: formatSlug(project.slug),
+      });
     const logoUrl = await findLogo(
       contentDirectory,
       project,
@@ -780,9 +823,10 @@ async function main() {
   if (!Array.isArray(rawProjects))
     throw new Error("config/projects.json must contain a JSON array");
 
-  const [buildSidebar, vibtoolsHelpers] = await Promise.all([
+  const [buildSidebar, vibtoolsHelpers, syncMetadataHelpers] = await Promise.all([
     loadSidebarBuilder(),
     loadVibtoolsConfigHelpers(),
+    loadSyncMetadataHelpers(),
   ]);
 
   const registryEntries = rawProjects.map((entry, index) => {
@@ -817,6 +861,7 @@ async function main() {
         siteConfig,
         buildSidebar,
         vibtoolsHelpers,
+        syncMetadataHelpers,
         token,
         reservedSlugs,
       );

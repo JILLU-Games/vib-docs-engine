@@ -523,6 +523,22 @@ async function main() {
 
     const vibtoolsErrors = await validateVibtoolsAndRegistry();
 
+    const seoErrors = [];
+    const MAX_OG_IMAGE_BYTES = 512 * 1024;
+    for (const ogPath of [
+      path.join(projectRoot, "public", "og-default.png"),
+      path.join(distDirectory, "og-default.png"),
+    ]) {
+      if (await exists(ogPath)) {
+        const ogStat = await fs.stat(ogPath);
+        if (ogStat.size === 0 || ogStat.size > MAX_OG_IMAGE_BYTES) {
+          seoErrors.push(
+            `${path.relative(projectRoot, ogPath)} size (${ogStat.size} bytes) must be between 1 byte and ${MAX_OG_IMAGE_BYTES} bytes (512 KB)`,
+          );
+        }
+      }
+    }
+
     for (const project of manifest.projects ?? []) {
       if (!project?.slug || !Array.isArray(project.flatPages)) {
         missingFiles.push(
@@ -531,8 +547,17 @@ async function main() {
         continue;
       }
       const llmsPath = path.join(distDirectory, project.slug, "llms.txt");
-      if (!(await exists(llmsPath)))
+      if (!(await exists(llmsPath))) {
         missingFiles.push(path.relative(projectRoot, llmsPath));
+      } else {
+        const productLlms = await fs.readFile(llmsPath, "utf8");
+        if (!productLlms.includes("Markdown Entry:")) {
+          seoErrors.push(`dist/${project.slug}/llms.txt is missing "Markdown Entry:" metadata`);
+        }
+        if (!productLlms.includes(".vibtools Config JSON Schema:")) {
+          seoErrors.push(`dist/${project.slug}/llms.txt is missing ".vibtools Config JSON Schema:" metadata`);
+        }
+      }
       for (const page of project.flatPages) {
         const htmlPath = routeToHtml(page.route);
         if (!(await exists(htmlPath)))
@@ -543,20 +568,60 @@ async function main() {
       }
     }
 
-    const seoErrors = [];
     const notFoundHtmlPath = path.join(distDirectory, "404.html");
     if (await exists(notFoundHtmlPath)) {
       const notFoundHtml = await fs.readFile(notFoundHtmlPath, "utf8");
       if (!/<meta\s+name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(notFoundHtml)) {
         seoErrors.push("dist/404.html is missing <meta name=\"robots\" content=\"noindex, ...\">");
       }
+      if (/<link\b[^>]*\brel\s*=\s*(?:"canonical"|'canonical')/i.test(notFoundHtml)) {
+        seoErrors.push("dist/404.html must not emit <link rel=\"canonical\">");
+      }
+      if (/<meta\b[^>]*\b(?:property\s*=\s*["']og:|name\s*=\s*["']twitter:)/i.test(notFoundHtml)) {
+        seoErrors.push("dist/404.html must not emit OpenGraph or Twitter social preview tags");
+      }
     }
 
     const htmlFiles = await walkHtml(distDirectory);
     const jsonLdPattern = /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    const titlePattern = /<title\b[^>]*>([\s\S]*?)<\/title>/i;
+    const metaTagPattern = /<meta\b[^>]*>/gi;
+    const h1Pattern = /<h1(?:\s[^>]*)?>/gi;
     for (const htmlFile of htmlFiles) {
       const html = await fs.readFile(htmlFile, "utf8");
       const relHtmlPath = path.relative(distDirectory, htmlFile);
+      const isNotFoundPage = relHtmlPath === "404.html";
+
+      const titleMatch = titlePattern.exec(html);
+      const titleText = (titleMatch?.[1] ?? "").trim();
+      if (!titleText) {
+        seoErrors.push(`${relHtmlPath} is missing a non-empty <title>`);
+      }
+
+      const metaTags = html.match(metaTagPattern) ?? [];
+      const hasDescription = metaTags.some((tag) => {
+        const nameMatch = /\bname\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag);
+        const contentMatch = /\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag);
+        const metaName = (nameMatch?.[1] ?? nameMatch?.[2] ?? "").toLowerCase();
+        const metaContent = (contentMatch?.[1] ?? contentMatch?.[2] ?? "").trim();
+        return metaName === "description" && metaContent.length > 0;
+      });
+      if (!hasDescription) {
+        seoErrors.push(`${relHtmlPath} is missing a non-empty <meta name="description">`);
+      }
+
+      const htmlWithoutScriptsOrStyles = html
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "");
+      const h1Matches = htmlWithoutScriptsOrStyles.match(h1Pattern) ?? [];
+      if (h1Matches.length !== 1) {
+        seoErrors.push(`${relHtmlPath} must have exactly 1 <h1> (found ${h1Matches.length})`);
+      }
+
+      if (!isNotFoundPage && !/<link\b[^>]*\brel\s*=\s*(?:"canonical"|'canonical')[^>]*\bhref\s*=\s*(?:"https?:\/\/[^"]+"|'https?:\/\/[^']+')/i.test(html)) {
+        seoErrors.push(`${relHtmlPath} is missing an absolute <link rel="canonical">`);
+      }
+
       const jsonLdMatches = Array.from(html.matchAll(jsonLdPattern));
       if (relHtmlPath === "index.html" && jsonLdMatches.length === 0) {
         seoErrors.push("dist/index.html is missing Schema.org JSON-LD");
@@ -602,6 +667,38 @@ async function main() {
           brokenLinks.push(
             `${relHtmlPath} -> link[href="${iconHref}"]`,
           );
+        }
+      }
+    }
+
+    const sitemapChunkPath = path.join(distDirectory, "sitemap-0.xml");
+    const indexableHtmlCount = htmlFiles.filter(
+      (filePath) => path.relative(distDirectory, filePath) !== "404.html",
+    ).length;
+    if (!(await exists(sitemapChunkPath))) {
+      missingFiles.push(path.relative(projectRoot, sitemapChunkPath));
+    } else {
+      const sitemapXml = await fs.readFile(sitemapChunkPath, "utf8");
+      const urlBlocks = Array.from(sitemapXml.matchAll(/<url>([\s\S]*?)<\/url>/gi)).map(
+        (match) => match[1],
+      );
+      if (urlBlocks.length !== indexableHtmlCount) {
+        seoErrors.push(
+          `dist/sitemap-0.xml URL count (${urlBlocks.length}) does not match indexable HTML pages (${indexableHtmlCount})`,
+        );
+      }
+      for (const block of urlBlocks) {
+        const locMatch = /<loc>([^<]+)<\/loc>/i.exec(block);
+        const lastmodMatch = /<lastmod>([^<]+)<\/lastmod>/i.exec(block);
+        const loc = locMatch?.[1]?.trim() ?? "";
+        const lastmod = lastmodMatch?.[1]?.trim() ?? "";
+        if (!loc) {
+          seoErrors.push("dist/sitemap-0.xml contains a <url> entry without <loc>");
+        } else if (/\/404(?:\.html)?\/?$/i.test(loc)) {
+          seoErrors.push(`dist/sitemap-0.xml must exclude 404 route (${loc})`);
+        }
+        if (!lastmod || Number.isNaN(Date.parse(lastmod))) {
+          seoErrors.push(`dist/sitemap-0.xml entry "${loc || "<unknown>"}" is missing a valid <lastmod>`);
         }
       }
     }

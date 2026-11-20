@@ -6,7 +6,9 @@ version: "1.0.0"
 
 # `.vibtools/` & `docs/` Repository Specification (Developer & AI Agent Reference)
 
-This document is the canonical specification for setting up `.vibtools/` and `docs/` inside any product repository so **Vib Docs Engine** can automatically sync, validate, categorize, and publish its documentation to **`https://docs.vib.tools`** (User Documentation Portal) and/or **`https://developer.vibtools.io`** (Developer Documentation Portal).
+This document is the canonical, **FINAL & FROZEN (`schemaVersion: 1`)** specification for setting up `.vibtools/` and `docs/` inside any product repository so **Vib Docs Engine** can automatically sync, validate, categorize, and publish documentation to **`https://docs.vib.tools`** (User Documentation Portal) and/or **`https://developer.vibtools.io`** (Developer Documentation Portal).
+
+> **Frozen Schema Governance Lock:** Both `docs.vib.tools` (`users`) and `developer.vibtools.io` (`developer`) collect `docs/` exclusively under this frozen schema (`https://docs.vib.tools/schemas/vibtools-docs.schema.json`). Do **NOT** modify, break, or extend the schema or its validation rules during code/fix tasks without explicit Repository Owner authorization (see `AGENTS.md` and `project/05-frozen-vibtools-schema.md`).
 
 > **For AI Coding Agents:** Everything required to configure a new or existing repository is specified on this page. You can also fetch the raw Markdown at `/vib-docs-engine/vibtools-config.md`, the full engine bundle at `/vib-docs-engine/llms.txt`, or the machine-readable JSON Schema at `/schemas/vibtools-docs.schema.json`.
 
@@ -344,102 +346,110 @@ npm run add-project -- --url https://github.com/vibtoolshq/LicenX.git
 
 ---
 
-## 8. Canonical JSON Schema (Draft 2020-12)
+## 8. Canonical Frozen JSON Schema (Draft 2020-12)
 
-This schema is hosted live at `/schemas/vibtools-docs.schema.json` on both `https://docs.vib.tools/schemas/vibtools-docs.schema.json` and `https://developer.vibtools.io/schemas/vibtools-docs.schema.json`:
+This **final, frozen** schema is hosted live at `/schemas/vibtools-docs.schema.json` on both `https://docs.vib.tools/schemas/vibtools-docs.schema.json` and `https://developer.vibtools.io/schemas/vibtools-docs.schema.json` and must remain unchanged unless explicitly ordered by the Repository Owner:
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://docs.vib.tools/schemas/vibtools-docs.schema.json",
   "title": "VibToolsDocsConfig",
-  "description": "Repository-level .vibtools/docs.config.json (or .vibtools/config.docs.json) contract for Vib Docs Engine single-portal and dual-portal documentation sync.",
+  "description": "Canonical repository configuration schema (.vibtools/docs.config.json or .vibtools/config.docs.json) for Vib Docs Engine single-portal and dual-portal (docs.vib.tools & developer.vibtools.io) synchronization.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "$schema": {
       "type": "string",
-      "minLength": 1,
-      "description": "Optional JSON Schema reference URL (for example https://docs.vib.tools/schemas/vibtools-docs.schema.json)."
+      "description": "Optional URI pointing to this JSON Schema (e.g. 'https://docs.vib.tools/schemas/vibtools-docs.schema.json')."
     },
     "schemaVersion": {
       "const": 1,
-      "description": "Schema format version marker. Must be 1 when provided."
+      "default": 1,
+      "description": "Schema format version marker. Must be 1 when specified."
     },
     "docsType": {
       "type": "string",
-      "enum": ["users", "developer", "both"],
+      "enum": [
+        "users",
+        "developer",
+        "both"
+      ],
       "default": "both",
-      "description": "Target portal audience: 'users' (docs.vib.tools), 'developer' (developer.vibtools.io), or 'both'."
+      "description": "Target portal audience: 'users' (docs.vib.tools), 'developer' (developer.vibtools.io), or 'both' (serves both portals)."
     },
     "slug": {
       "type": "string",
       "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-      "description": "Lowercase URL-safe product route slug (e.g. 'licenx', 'socket-core'). Defaults to the normalized repository name."
+      "description": "Lowercase URL-safe product slug (e.g. 'licenx', 'socketcore'). Defaults to normalized repository name from repoUrl."
     },
     "title": {
       "type": "string",
       "minLength": 1,
-      "description": "Display name of the product shown on Hub cards, breadcrumbs, and topbar."
+      "description": "Display title for the product card and navigation header. Falls back to root index.md frontmatter or first # H1 heading."
     },
     "category": {
       "type": "string",
       "minLength": 1,
-      "description": "Hub category tab label (e.g. 'Core Engine', 'SDKs & CLI', 'Desktop Apps')."
+      "description": "Hub filter category label (e.g. 'Desktop Apps', 'Core Engine', 'SDKs & Modules')."
     },
     "description": {
       "type": "string",
       "minLength": 1,
-      "description": "Concise product summary for Hub cards, SEO meta tags, and llms.txt indexes."
+      "description": "Concise 1-2 sentence product summary for Hub cards, SEO meta description, and llms.txt index."
     },
     "version": {
-      "type": ["string", "number"],
-      "description": "Product release or docs version badge (e.g. '1.2.0')."
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Displayed release version badge (e.g. '1.2.0'). Leading 'v' is normalized automatically at render time."
     },
     "accentColor": {
       "type": "string",
       "pattern": "^#(?:[\\da-fA-F]{3}|[\\da-fA-F]{4}|[\\da-fA-F]{6}|[\\da-fA-F]{8})$",
-      "description": "CSS hex accent color (#RGB, #RGBA, #RRGGBB, or #RRGGBBAA)."
+      "description": "3, 4, 6, or 8 digit hexadecimal CSS accent color (e.g. '#7C3AED' or '#2563EB')."
     },
     "docsPath": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^(?!/)(?!\\.$)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$",
       "default": "docs",
-      "description": "Relative POSIX directory path to Markdown/MDX documentation inside the repository (e.g. 'docs', 'docs/users', 'docs/dev')."
+      "description": "Relative POSIX folder path inside the repository containing index.md or README.md (e.g. 'docs', 'docs/users', 'docs/dev'). No leading '/', '\\', '..', or '.'."
     },
     "logoPath": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^(?!/)(?!\\.$)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$",
-      "description": "Relative POSIX file path to the product logo (.svg, .png, .webp, .avif under 2 MB, e.g. '.vibtools/logo.svg')."
+      "description": "Relative POSIX file path to a static SVG or PNG product logo under 2 MB (e.g. '.vibtools/logo.png' or '.vibtools/logo.svg')."
     },
     "branch": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^(?!.*\\s)(?!.*\\\\)(?!.*\\.\\.).+$",
       "default": "main",
-      "description": "Git branch to sparse-clone during documentation sync."
+      "description": "Git branch to sparse-checkout for documentation (defaults to 'main')."
     },
     "ctaLabel": {
       "type": "string",
       "minLength": 1,
-      "description": "Topbar external CTA button label (defaults to 'Open' when ctaUrl is set)."
+      "description": "Topbar external action button label (e.g. 'View repository', 'Get License'). Ignored unless ctaUrl is also set."
     },
     "ctaUrl": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://",
-      "description": "Absolute HTTP/HTTPS destination URL for the topbar CTA button."
+      "description": "External HTTP or HTTPS URL opened by the topbar CTA button."
     },
     "targets": {
       "type": "object",
       "minProperties": 1,
       "additionalProperties": false,
-      "description": "Optional per-portal overrides when a single repository serves both docs.vib.tools ('users') and developer.vibtools.io ('developer').",
+      "description": "Optional per-portal overrides allowing a single repository to serve different docsPath, slug, title, category, description, accentColor, logoPath, ctaUrl, or branch to docs.vib.tools ('users') and developer.vibtools.io ('developer').",
       "properties": {
-        "users": { "$ref": "#/$defs/target" },
-        "developer": { "$ref": "#/$defs/target" }
+        "users": {
+          "$ref": "#/$defs/target"
+        },
+        "developer": {
+          "$ref": "#/$defs/target"
+        }
       }
     }
   },
@@ -450,36 +460,63 @@ This schema is hosted live at `/schemas/vibtools-docs.schema.json` on both `http
       "properties": {
         "slug": {
           "type": "string",
-          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "description": "Lowercase URL-safe product slug (e.g. 'licenx', 'socketcore'). Defaults to normalized repository name from repoUrl."
         },
-        "title": { "type": "string", "minLength": 1 },
-        "category": { "type": "string", "minLength": 1 },
-        "description": { "type": "string", "minLength": 1 },
-        "version": { "type": ["string", "number"] },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Display title for the product card and navigation header. Falls back to root index.md frontmatter or first # H1 heading."
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Hub filter category label (e.g. 'Desktop Apps', 'Core Engine', 'SDKs & Modules')."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Concise 1-2 sentence product summary for Hub cards, SEO meta description, and llms.txt index."
+        },
+        "version": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "Displayed release version badge (e.g. '1.2.0'). Leading 'v' is normalized automatically at render time."
+        },
         "accentColor": {
           "type": "string",
-          "pattern": "^#(?:[\\da-fA-F]{3}|[\\da-fA-F]{4}|[\\da-fA-F]{6}|[\\da-fA-F]{8})$"
+          "pattern": "^#(?:[\\da-fA-F]{3}|[\\da-fA-F]{4}|[\\da-fA-F]{6}|[\\da-fA-F]{8})$",
+          "description": "3, 4, 6, or 8 digit hexadecimal CSS accent color (e.g. '#7C3AED' or '#2563EB')."
         },
         "docsPath": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^(?!/)(?!\\.$)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+          "default": "docs",
+          "description": "Relative POSIX folder path inside the repository containing index.md or README.md (e.g. 'docs', 'docs/users', 'docs/dev'). No leading '/', '\\', '..', or '.'."
         },
         "logoPath": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^(?!/)(?!\\.$)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+          "description": "Relative POSIX file path to a static SVG or PNG product logo under 2 MB (e.g. '.vibtools/logo.png' or '.vibtools/logo.svg')."
         },
         "branch": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^(?!.*\\s)(?!.*\\\\)(?!.*\\.\\.).+$"
+          "default": "main",
+          "description": "Git branch to sparse-checkout for documentation (defaults to 'main')."
         },
-        "ctaLabel": { "type": "string", "minLength": 1 },
+        "ctaLabel": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Topbar external action button label (e.g. 'View repository', 'Get License'). Ignored unless ctaUrl is also set."
+        },
         "ctaUrl": {
           "type": "string",
           "format": "uri",
-          "pattern": "^https?://"
+          "pattern": "^https?://",
+          "description": "External HTTP or HTTPS URL opened by the topbar CTA button."
         }
       }
     }

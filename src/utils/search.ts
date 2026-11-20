@@ -104,3 +104,54 @@ export function selectInitialSuggestions(params: {
 
   return { recent, suggested };
 }
+
+export function buildBalancedStartLinks(
+  projects: ManifestProject[],
+  limit = 4,
+): SearchLinkEntry[] {
+  const maxItems = Math.max(1, limit);
+  const perProjectQueues = projects.map((project) => {
+    const pages = Array.isArray(project.flatPages) ? project.flatPages : [];
+    const rootRoute = `/${project.slug}/`;
+    const nonRoot = pages.filter((p) => normalizeRoutePath(p.route) !== rootRoute);
+    const onboarding = nonRoot.filter((p) =>
+      /(?:getting[-_ ]started|quickstart|quick[-_ ]start|installation)/i.test(
+        `${p.route} ${p.title}`,
+      ),
+    );
+    const remaining = nonRoot.filter((p) => !onboarding.includes(p));
+    const root = pages.filter((p) => normalizeRoutePath(p.route) === rootRoute);
+    return {
+      project,
+      ordered: [...onboarding, ...remaining, ...root],
+    };
+  });
+
+  const results: SearchLinkEntry[] = [];
+  const seenRoutes = new Set<string>();
+  let depth = 0;
+
+  while (results.length < maxItems) {
+    let addedInRound = false;
+    for (const queue of perProjectQueues) {
+      if (results.length >= maxItems) break;
+      const page = queue.ordered[depth];
+      if (!page) continue;
+      const route = normalizeRoutePath(page.route);
+      if (seenRoutes.has(route)) continue;
+      seenRoutes.add(route);
+      results.push({
+        title: page.title,
+        route,
+        productSlug: queue.project.slug,
+        productTitle: queue.project.title,
+        breadcrumb: formatBreadcrumb(route, queue.project.title),
+      });
+      addedInRound = true;
+    }
+    if (!addedInRound) break;
+    depth += 1;
+  }
+
+  return results;
+}

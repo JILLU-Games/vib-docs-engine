@@ -2,14 +2,15 @@
 import siteConfig from "../../config/site.config.json";
 import SearchModal from "../components/ui/SearchModal.astro";
 import "../styles/global.css";
-import { safeJsonLdStringify } from "../utils/seo";
+import { formatBaseTitle, safeJsonLdStringify } from "../utils/seo";
 import { resolveAccentColor } from "../utils/theme";
 
 interface Props {
   title: string;
   description?: string;
   accentColor?: string;
-  canonicalPath?: string;
+  canonicalPath?: string | null;
+  includeSocialMeta?: boolean;
   ogType?: "website" | "article";
   robots?: string;
   structuredData?: Record<string, unknown> | Array<Record<string, unknown>>;
@@ -21,18 +22,31 @@ const {
   description = siteConfig.portalSubtitle,
   accentColor,
   canonicalPath,
+  includeSocialMeta,
   ogType = "website",
   robots,
   structuredData,
   alternateLinks = [],
 } = Astro.props;
-const pageTitle = title === siteConfig.portalTitle
-  ? title
-  : `${title} | ${siteConfig.portalTitle}`;
+const pageTitle = formatBaseTitle(
+  title,
+  siteConfig.portalTitle,
+  siteConfig.brandName,
+);
 const baseOrigin = /^https?:\/\//i.test(siteConfig.domain)
   ? siteConfig.domain
   : `https://${siteConfig.domain}`;
-const canonicalUrl = new URL(canonicalPath ?? Astro.url.pathname, baseOrigin).href;
+const isNoIndex = Boolean(robots && /\bnoindex\b/i.test(robots));
+const shouldEmitCanonical = canonicalPath !== null && !isNoIndex;
+const shouldEmitSocialMeta = includeSocialMeta ?? !isNoIndex;
+let canonicalUrl: string | undefined;
+if (shouldEmitCanonical) {
+  try {
+    canonicalUrl = new URL(canonicalPath ?? Astro.url.pathname, baseOrigin).href;
+  } catch {
+    canonicalUrl = undefined;
+  }
+}
 const ogImageUrl = new URL("/og-default.png", baseOrigin).href;
 const resolvedAccent = resolveAccentColor(accentColor, siteConfig.defaultAccent);
 ---
@@ -44,6 +58,7 @@ const resolvedAccent = resolveAccentColor(accentColor, siteConfig.defaultAccent)
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
+    <meta name="author" content={siteConfig.brandName} />
     {robots && <meta name="robots" content={robots} />}
     <meta name="theme-color" content={siteConfig.defaultAccent} />
     <meta name="apple-mobile-web-app-title" content={siteConfig.brandName} />
@@ -53,7 +68,7 @@ const resolvedAccent = resolveAccentColor(accentColor, siteConfig.defaultAccent)
     <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <link rel="canonical" href={canonicalUrl} />
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
     <link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
     <link rel="alternate" type="text/plain" title="LLMs Index" href="/llms.txt" />
     <link rel="alternate" type="text/plain" title="LLMs Full Documentation" href="/llms-full.txt" />
@@ -61,34 +76,72 @@ const resolvedAccent = resolveAccentColor(accentColor, siteConfig.defaultAccent)
     {alternateLinks.map((alt) => (
       <link rel="alternate" type={alt.type} title={alt.title} href={alt.href} />
     ))}
-    <meta property="og:type" content={ogType} />
-    <meta property="og:site_name" content={siteConfig.brandName} />
-    <meta property="og:title" content={pageTitle} />
-    <meta property="og:description" content={description} />
-    <meta property="og:url" content={canonicalUrl} />
-    <meta property="og:image" content={ogImageUrl} />
-    <meta property="og:image:alt" content={pageTitle} />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={pageTitle} />
-    <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={ogImageUrl} />
+    {shouldEmitSocialMeta && (
+      <>
+        <meta property="og:type" content={ogType} />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:site_name" content={siteConfig.brandName} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={description} />
+        {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+        <meta property="og:image" content={ogImageUrl} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content={pageTitle} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={ogImageUrl} />
+        <meta name="twitter:image:alt" content={pageTitle} />
+      </>
+    )}
     {structuredData && (
       <script is:inline type="application/ld+json" set:html={safeJsonLdStringify(structuredData)} />
     )}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
     <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
+    <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
     <title>{pageTitle}</title>
     <script is:inline>
       (() => {
+        const normalizeTheme = (value) => {
+          if (typeof value !== "string") return null;
+          const normalized = value.trim().toLowerCase();
+          return normalized === "light" || normalized === "dark" ? normalized : null;
+        };
         let theme = "dark";
+        let queryTheme = null;
         try {
-          const savedTheme = localStorage.getItem("theme");
-          if (savedTheme === "light" || savedTheme === "dark") theme = savedTheme;
+          const params = new URLSearchParams(window.location.search);
+          queryTheme = normalizeTheme(params.get("theme")) || normalizeTheme(params.get("themes"));
         } catch {}
+        if (queryTheme) {
+          theme = queryTheme;
+          try {
+            localStorage.setItem("theme", queryTheme);
+          } catch {}
+        } else {
+          try {
+            const savedTheme = normalizeTheme(localStorage.getItem("theme"));
+            if (savedTheme) theme = savedTheme;
+          } catch {}
+        }
         document.documentElement.classList.toggle("dark", theme === "dark");
         document.documentElement.dataset.theme = theme;
       })();

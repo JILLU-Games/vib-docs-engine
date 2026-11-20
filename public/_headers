@@ -15,18 +15,23 @@
 /llms.txt
   Content-Type: text/plain; charset=utf-8
   Cache-Control: public, max-age=300
+  Access-Control-Allow-Origin: *
 
 /llms-full.txt
   Content-Type: text/plain; charset=utf-8
   Cache-Control: public, max-age=300
+  Access-Control-Allow-Origin: *
 
 /*/llms.txt
   Content-Type: text/plain; charset=utf-8
   Cache-Control: public, max-age=300
+  Access-Control-Allow-Origin: *
 
 /*.md
   Content-Type: text/markdown; charset=utf-8
   Cache-Control: public, max-age=300
+  X-Robots-Tag: noindex, follow
+  Access-Control-Allow-Origin: *
 
 /site.webmanifest
   Content-Type: application/manifest+json; charset=utf-8
@@ -35,6 +40,7 @@
 /schemas/*.json
   Content-Type: application/schema+json; charset=utf-8
   Cache-Control: public, max-age=300
+  Access-Control-Allow-Origin: *
 
 /robots.txt
   Content-Type: text/plain; charset=utf-8

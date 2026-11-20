@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildBalancedStartLinks,
   buildQuickSuggestions,
   formatBreadcrumb,
   normalizeRoutePath,
@@ -90,4 +91,42 @@ test("buildQuickSuggestions and selectInitialSuggestions exclude recent duplicat
   });
   assert.equal(selected.recent.length, 1);
   assert.equal(selected.suggested.some((item) => item.route === suggestions[0]?.route), false);
+});
+
+test("buildBalancedStartLinks prioritizes onboarding guides in round-robin across products", () => {
+  const projects: ManifestProject[] = [
+    {
+      slug: "calgrid",
+      category: "Desktop Apps",
+      accentColor: "#4F46E5",
+      title: "CalGrid",
+      description: "Scheduler",
+      logoUrl: null,
+      sidebar: [],
+      flatPages: [
+        { title: "Overview", route: "/calgrid/", source: "index.md" },
+        { title: "Brand Identity", route: "/calgrid/guides/brand/", source: "guides/brand.md" },
+        { title: "Getting Started", route: "/calgrid/getting-started/", source: "getting-started/index.md" },
+      ],
+    },
+    {
+      slug: "readbox",
+      category: "Email",
+      accentColor: "#2457C5",
+      title: "ReadBox User Documentation",
+      description: "Inbound mail",
+      logoUrl: null,
+      sidebar: [],
+      flatPages: [
+        { title: "Overview", route: "/readbox/", source: "index.md" },
+        { title: "Domains and DNS", route: "/readbox/features/domains/", source: "features/domains.md" },
+        { title: "Getting started with ReadBox", route: "/readbox/getting-started/", source: "getting-started.md" },
+      ],
+    },
+  ];
+
+  const links = buildBalancedStartLinks(projects, 2);
+  assert.equal(links.length, 2);
+  assert.equal(links[0]?.route, "/calgrid/getting-started/");
+  assert.equal(links[1]?.route, "/readbox/getting-started/");
 });
