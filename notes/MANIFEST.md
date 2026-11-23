@@ -12,3 +12,4 @@
 | `006-sync-precedence-and-branch-reload-plan.md` | Plan & verification log for `.vibtools/` metadata precedence and sparse-branch re-read fix | Plan |
 | `007-compact-search-first-hub-hero-plan.md` | Plan & verification log for compact search-first multi-product Hub Hero | Plan |
 | `008-url-theme-routing-plan.md` | Plan & verification log for Option A URL query theme routing (`?theme=light\|dark`) | Plan |
+| `009-add-gm2-2-runner-plan.md` | Plan & verification log for onboarding `vibdocs/GM2.2-Runner` user documentation | Plan |

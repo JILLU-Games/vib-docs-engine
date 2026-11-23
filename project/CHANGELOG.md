@@ -327,3 +327,10 @@ Record dates, files/areas, behavior changed, and verification result whenever co
 - Updated `src/components/ui/ThemeToggle.astro` to sync active `?theme=` / `?themes=` query parameters via `window.history.replaceState` on toggle while leaving clean URLs unmodified during normal browsing.
 - Updated `src/utils/MANIFEST.md`, `project/04-codebase-reference.md`, and `docs/portal-user-guide.md`.
 - Verified `npm test` (`31/31` pass), `npm run lint`, `compile_applet`, `STRICT_SYNC=1 npm run verify` (`48` HTML files, `16` required assets, `2` projects, `0` broken links), and live Playwright Chromium journeys (`0` console errors/warnings).
+
+## 2026-11-23 — Onboard `vibdocs/GM2.2-Runner` User Documentation & Stripped `MANIFEST.md` Link Handling
+
+- Registered `https://github.com/vibdocs/GM2.2-Runner.git` in `config/projects.json` via `npm run add-project -- --url https://github.com/vibdocs/GM2.2-Runner.git` (`GM Mailer 2.2 Runner`, `v2.2.10`, slug `gm2-2-runner`, `Desktop Apps`, `19` synced pages, `.vibtools/logo.png`).
+- Updated `rewriteInternalMarkdownLinks` in `astro.config.mjs` so relative links targeting stripped governance `MANIFEST.md` files (such as `gm2-2-runner/index.md` -> `MANIFEST.md`) rewrite cleanly to their parent directory overview route (`/gm2-2-runner/`) instead of breaking static link verification.
+- Updated `project/04-codebase-reference.md` and `notes/009-add-gm2-2-runner-plan.md`.
+- Verified `npm test` (`31/31` pass), `npm run lint`, `compile_applet`, `STRICT_SYNC=1 npm run verify` (`67` HTML files, `16` required assets, `3` projects, `65` Pagefind pages, `0` broken internal links), and live Playwright Chromium visual & interactive inspection across `/` and `/gm2-2-runner/` (`0` broken images, `0` console errors/warnings).

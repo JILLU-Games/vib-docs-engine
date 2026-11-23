@@ -75,11 +75,11 @@ function rewriteInternalMarkdownLinks() {
                   const innerSegments = segments.slice(1);
                   const lastSegment =
                     innerSegments[innerSegments.length - 1] ?? "";
-                  const isIndexOrReadme = /^(?:index|readme)\.mdx?$/i.test(
+                  const isDirectoryDoc = /^(?:index|readme|manifest)\.mdx?$/i.test(
                     lastSegment,
                   );
                   const routeSegments = (
-                    isIndexOrReadme
+                    isDirectoryDoc
                       ? innerSegments.slice(0, -1)
                       : innerSegments
                   )
@@ -95,11 +95,11 @@ function rewriteInternalMarkdownLinks() {
                 .split("/")
                 .filter((seg) => seg && seg !== ".");
               const lastSegment = segments[segments.length - 1] ?? "";
-              const isIndexOrReadme = /^(?:index|readme)\.mdx?$/i.test(
+              const isDirectoryDoc = /^(?:index|readme|manifest)\.mdx?$/i.test(
                 lastSegment,
               );
               const routeSegments = (
-                isIndexOrReadme ? segments.slice(0, -1) : segments
+                isDirectoryDoc ? segments.slice(0, -1) : segments
               )
                 .map((seg) => (seg === ".." ? ".." : cleanSegment(seg)))
                 .filter(Boolean);
